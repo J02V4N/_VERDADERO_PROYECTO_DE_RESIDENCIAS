@@ -402,6 +402,7 @@
             btnConfirmarCobro.TabIndex = 4;
             btnConfirmarCobro.Text = "Confirmar y Cerrar";
             btnConfirmarCobro.UseVisualStyleBackColor = true;
+            btnConfirmarCobro.Click += btnConfirmarCobro_Click;
             // 
             // cboUsoCFDI
             // 

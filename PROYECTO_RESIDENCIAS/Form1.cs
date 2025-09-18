@@ -1,10 +1,11 @@
-using FirebirdSql.Data.FirebirdClient;
+Ôªøusing FirebirdSql.Data.FirebirdClient;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Linq;
-using System.Windows.Forms;
 using System.Drawing.Printing;
+using System.Linq;
+using System.Text.RegularExpressions;
+using System.Windows.Forms;
 
 namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 {
@@ -37,7 +38,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
         {
             public string Clave { get; set; }          // CLAVE_ART en SAE
             public string Nombre { get; set; }
-            public decimal PrecioUnit { get; set; }    // $ por pieza o por kg (seg˙n RequierePeso)
+            public decimal PrecioUnit { get; set; }    // $ por pieza o por kg (seg√∫n RequierePeso)
             public bool RequierePeso { get; set; }     // true si se vende por gramos (PrecioUnit = $/kg)
             public override string ToString() => $"{Nombre} {(RequierePeso ? $"(${PrecioUnit}/kg)" : $"${PrecioUnit}")}";
         }
@@ -95,7 +96,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
         {
             InitializeComponent();
             this.Load += Form1_Load; // <-- SUSCRIBIR
-            // Config inicial del timer de ìb·sculaî
+            // Config inicial del timer de ‚Äúb√°scula‚Äù
             _timerBascula.Interval = 800; // ms
             _timerBascula.Tick += (s, e) => SimularLecturaBascula();
 
@@ -103,9 +104,9 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            
 
-            // 1) Carga de cat·logos dummy
+
+            // 1) Carga de cat√°logos dummy
             SeedMeseros();
             SeedMesas(12);
             SeedPlatillos();
@@ -124,7 +125,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             lbPlatillos.DoubleClick += (s, ev) => AgregarPlatilloSeleccionado();
             btnAgregarLinea.Click += (s, ev) => AgregarPlatilloSeleccionado();
             chkSimularBascula.CheckedChanged += (s, e) => UpdateScaleTimer();
-            
+
             btnIrCobro.Click += (s, ev) => IrACobro();
             chkFacturarAhora.CheckedChanged += (s, ev) => ToggleCamposFactura();
             btnConfirmarCobro.Click += (s, ev) => ConfirmarCobro();
@@ -143,7 +144,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             //var status = new StatusStrip();
             //var sSae = new ToolStripStatusLabel("SAE: ?");
             //var sAux = new ToolStripStatusLabel("Aux: ?");
-            //var sBas = new ToolStripStatusLabel("B·scula: OFF");
+            //var sBas = new ToolStripStatusLabel("B√°scula: OFF");
             //status.Items.AddRange(new ToolStripItem[] { sSae, sAux, sBas });
             //status.SizingGrip = false;
             //this.Controls.Add(status);
@@ -181,7 +182,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             dgvInvCaptura.Columns.Clear();
             dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "#", DataPropertyName = "Partida", Width = 40, ReadOnly = true });
             dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Clave", DataPropertyName = "Clave", Width = 100, ReadOnly = true });
-            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "DescripciÛn", DataPropertyName = "Nombre", Width = 220, ReadOnly = true });
+            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Descripci√≥n", DataPropertyName = "Nombre", Width = 220, ReadOnly = true });
             dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Peso (g)", DataPropertyName = "PesoGr", Width = 80 });
             dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Kg", DataPropertyName = "PesoKg", Width = 70, ReadOnly = true });
             dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Costo/Kg", DataPropertyName = "CostoKg", Width = 80 });
@@ -189,7 +190,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             dgvInvCaptura.DataSource = _invEntradas;
             dgvInvCaptura.CellEndEdit += (s, e) => RecalcularTotalesInventario();
 
-            // Carga inicial del cat·logo desde SAE (si quieres al abrir)
+            // Carga inicial del cat√°logo desde SAE (si quieres al abrir)
             CargarInvArticulosDesdeSAE();
 
 
@@ -202,7 +203,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
         {
             if (who == "SAE") tslSae.Text = ok ? "SAE: Conectado" : "SAE: OFF";
             if (who == "AUX") tslAux.Text = ok ? "Aux: Conectada" : "Aux: OFF";
-            if (who == "BAS") tslBascula.Text = ok ? "B·scula: ON" : "B·scula: OFF";
+            if (who == "BAS") tslBascula.Text = ok ? "B√°scula: ON" : "B√°scula: OFF";
         }
         //TOOL STRIP ------------------------------------------------------------------------------------------------------------------------
 
@@ -214,7 +215,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             {
                 new Mesero{ Id=1, Nombre="Ana" },
                 new Mesero{ Id=2, Nombre="Luis" },
-                new Mesero{ Id=3, Nombre="SofÌa" }
+                new Mesero{ Id=3, Nombre="Sof√≠a" }
             };
         }
 
@@ -241,7 +242,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
                 new Platillo{ Clave="PST-AL", Nombre="Pasta Alfredo", PrecioUnit=89m, RequierePeso=false },
                 new Platillo{ Clave="CAR-AL", Nombre="Carne al peso", PrecioUnit=360m, RequierePeso=true }, // $/kg
                 new Platillo{ Clave="QSO-FD", Nombre="Queso fundido", PrecioUnit=75m, RequierePeso=false },
-                new Platillo{ Clave="CAM-PS", Nombre="CamarÛn al peso", PrecioUnit=520m, RequierePeso=true } // $/kg
+                new Platillo{ Clave="CAM-PS", Nombre="Camar√≥n al peso", PrecioUnit=520m, RequierePeso=true } // $/kg
             };
         }
 
@@ -249,41 +250,216 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
         private void ConfigurarGrids()
         {
-            // Mesas
+            // ===== MESAS =====
             dgvMesas.AutoGenerateColumns = false;
             dgvMesas.Columns.Clear();
-            dgvMesas.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Id", DataPropertyName = "Id", Width = 40 });
-            dgvMesas.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Mesa", DataPropertyName = "Nombre", Width = 100 });
-            dgvMesas.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Cap.", DataPropertyName = "Capacidad", Width = 50 });
-            dgvMesas.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Estado", DataPropertyName = "Estado", Width = 90 });
+
             dgvMesas.Columns.Add(new DataGridViewTextBoxColumn
             {
-                HeaderText = "Mesero",
-                Width = 110,
-                DataPropertyName = "MeseroId"
+                Name = "colMesaId",
+                HeaderText = "Id",
+                DataPropertyName = "Id",
+                Width = 40,
+                ReadOnly = true
             });
-            dgvMesas.CellFormatting += (s, e) =>
+            dgvMesas.Columns.Add(new DataGridViewTextBoxColumn
             {
-                if (dgvMesas.Columns[e.ColumnIndex].HeaderText == "Mesero" && e.Value is int id && id > 0)
-                {
-                    var m = _meseros.FirstOrDefault(x => x.Id == id);
-                    e.Value = m?.Nombre ?? "";
-                }
-            };
+                Name = "colMesaNombre",
+                HeaderText = "Mesa",
+                DataPropertyName = "Nombre",
+                Width = 100,
+                ReadOnly = true
+            });
+            dgvMesas.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colMesaCap",
+                HeaderText = "Cap.",
+                DataPropertyName = "Capacidad",
+                Width = 50,
+                ReadOnly = true
+            });
+            dgvMesas.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colMesaEstado",
+                HeaderText = "Estado",
+                DataPropertyName = "Estado",
+                Width = 90,
+                ReadOnly = true
+            });
+            dgvMesas.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colMesaMesero",
+                HeaderText = "Mesero",
+                DataPropertyName = "MeseroId",
+                Width = 110,
+                ReadOnly = true
+            });
 
-            // Pedido
+            dgvMesas.CellFormatting -= DgvMesas_CellFormatting;
+            dgvMesas.CellFormatting += DgvMesas_CellFormatting;
+
+            // ===== PEDIDO =====
             dgvPedido.AutoGenerateColumns = false;
             dgvPedido.Columns.Clear();
-            dgvPedido.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "#", DataPropertyName = "Partida", Width = 40, ReadOnly = true });
-            dgvPedido.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Clave", DataPropertyName = "Clave", Width = 80, ReadOnly = true });
-            dgvPedido.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "DescripciÛn", DataPropertyName = "Nombre", Width = 190, ReadOnly = true });
-            dgvPedido.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Cant", DataPropertyName = "Cantidad", Width = 60 });
-            dgvPedido.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Peso (g)", DataPropertyName = "PesoGr", Width = 80 });
-            dgvPedido.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "P.Unit", DataPropertyName = "PrecioUnit", Width = 70, ReadOnly = true });
-            dgvPedido.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Importe", DataPropertyName = "Importe", Width = 80, ReadOnly = true });
 
+            dgvPedido.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colPartida",
+                HeaderText = "#",
+                DataPropertyName = "Partida",
+                Width = 40,
+                ReadOnly = true
+            });
+            dgvPedido.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colClave",
+                HeaderText = "Clave",
+                DataPropertyName = "Clave",
+                Width = 80,
+                ReadOnly = true
+            });
+            dgvPedido.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colNombre",
+                HeaderText = "Descripci√≥n",
+                DataPropertyName = "Nombre",
+                Width = 190,
+                ReadOnly = true
+            });
+            dgvPedido.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colCantidad",
+                HeaderText = "Cant",
+                DataPropertyName = "Cantidad",
+                Width = 60,
+                ReadOnly = false
+            });
+            dgvPedido.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colPesoGr",
+                HeaderText = "Peso (g)",
+                DataPropertyName = "PesoGr",
+                Width = 80,
+                ReadOnly = false
+            });
+            dgvPedido.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colPrecioUnit",
+                HeaderText = "P.Unit",
+                DataPropertyName = "PrecioUnit",
+                Width = 70,
+                ReadOnly = true
+            });
+            dgvPedido.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colImporte",
+                HeaderText = "Importe",
+                DataPropertyName = "Importe",
+                Width = 80,
+                ReadOnly = true
+            });
+
+            // Formatos (usan Name, ya no HeaderText)
+            dgvPedido.Columns["colPrecioUnit"].DefaultCellStyle.Format = "N2";
+            dgvPedido.Columns["colImporte"].DefaultCellStyle.Format = "N2";
+            dgvPedido.Columns["colPesoGr"].DefaultCellStyle.Format = "N0";
+            dgvPedido.Columns["colCantidad"].DefaultCellStyle.Format = "N2";
+
+            dgvPedido.CellEndEdit -= (s, e) => RecalcularTotales();
             dgvPedido.CellEndEdit += (s, e) => RecalcularTotales();
+
+            // ===== INVENTARIO (captura por b√°scula) =====
+            dgvInvCaptura.AutoGenerateColumns = false;
+            dgvInvCaptura.Columns.Clear();
+
+            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colInvPartida",
+                HeaderText = "#",
+                DataPropertyName = "Partida",
+                Width = 40,
+                ReadOnly = true
+            });
+            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colInvClave",
+                HeaderText = "Clave",
+                DataPropertyName = "Clave",
+                Width = 100,
+                ReadOnly = true
+            });
+            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colInvNombre",
+                HeaderText = "Descripci√≥n",
+                DataPropertyName = "Nombre",
+                Width = 220,
+                ReadOnly = true
+            });
+            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colInvPesoGr",
+                HeaderText = "Peso (g)",
+                DataPropertyName = "PesoGr",
+                Width = 80,
+                ReadOnly = false
+            });
+            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colInvKg",
+                HeaderText = "Kg",
+                DataPropertyName = "PesoKg",
+                Width = 70,
+                ReadOnly = true
+            });
+            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colInvCostoKg",
+                HeaderText = "Costo/Kg",
+                DataPropertyName = "CostoKg",
+                Width = 80,
+                ReadOnly = false
+            });
+            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colInvImporte",
+                HeaderText = "Importe",
+                DataPropertyName = "Importe",
+                Width = 80,
+                ReadOnly = true
+            });
+
+            dgvInvCaptura.Columns["colInvKg"].DefaultCellStyle.Format = "N3";
+            dgvInvCaptura.Columns["colInvCostoKg"].DefaultCellStyle.Format = "N2";
+            dgvInvCaptura.Columns["colInvImporte"].DefaultCellStyle.Format = "N2";
+
+            // Si quieres validar num√©ricos:
+            dgvInvCaptura.CellValidating -= DgvInvCaptura_CellValidating;
+            dgvInvCaptura.CellValidating += DgvInvCaptura_CellValidating;
         }
+
+        private void DgvMesas_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (dgvMesas.Columns[e.ColumnIndex].Name == "colMesaMesero" && e.Value is int id && id > 0)
+            {
+                var m = _meseros.FirstOrDefault(x => x.Id == id);
+                e.Value = m?.Nombre ?? "";
+            }
+        }
+
+        private void DgvInvCaptura_CellValidating(object sender, DataGridViewCellValidatingEventArgs e)
+        {
+            var name = dgvInvCaptura.Columns[e.ColumnIndex].Name;
+            if (name == "colInvPesoGr" || name == "colInvCostoKg")
+            {
+                if (e.FormattedValue != null && !string.IsNullOrWhiteSpace(e.FormattedValue.ToString()))
+                {
+                    if (!decimal.TryParse(e.FormattedValue.ToString(), out var v) || v < 0)
+                    { e.Cancel = true; MessageBox.Show("Valor inv√°lido."); }
+                }
+            }
+        }
+
 
         private void SeleccionarMesa()
         {
@@ -343,13 +519,13 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
                     Clave = p.Clave,
                     Nombre = p.Nombre,
                     RequierePeso = p.RequierePeso,
-                    Cantidad = p.RequierePeso ? 1 : 1, // si pesa, manejamos PesoGr; Cantidad=1 simbÛlica
+                    Cantidad = p.RequierePeso ? 1 : 1, // si pesa, manejamos PesoGr; Cantidad=1 simb√≥lica
                     PrecioUnit = p.PrecioUnit
                 };
 
                 if (p.RequierePeso)
                 {
-                    // tomar lo que estÈ en txtPesoGr (simulado o real)
+                    // tomar lo que est√© en txtPesoGr (simulado o real)
                     if (decimal.TryParse(txtPesoGr.Text, out var gr) && gr > 0)
                         det.PesoGr = gr;
                     else
@@ -399,7 +575,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
             bool on = chkFacturarAhora.Checked;
             txtRFC.Enabled = txtRazon.Enabled = cboUsoCFDI.Enabled = on;
-            // TambiÈn podrÌas forzar validaciones cuando on=true
+            // Tambi√©n podr√≠as forzar validaciones cuando on=true
         }
 
         private void ConfirmarCobro()
@@ -407,10 +583,10 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             if (_pedidoActual == null) return;
 
             _pedidoActual.FacturarAhora = chkFacturarAhora.Checked;
-            // AquÌ solo simulamos ìcobradoî
+            // Aqu√≠ solo simulamos ‚Äúcobrado‚Äù
             MessageBox.Show(_pedidoActual.FacturarAhora
-                ? "Cobro confirmado. (SimulaciÛn) Facturar ahora."
-                : "Cobro confirmado. (SimulaciÛn) Ticket / Facturar despuÈs.",
+                ? "Cobro confirmado. (Simulaci√≥n) Facturar ahora."
+                : "Cobro confirmado. (Simulaci√≥n) Ticket / Facturar despu√©s.",
                 "OK", MessageBoxButtons.OK, MessageBoxIcon.Information);
 
             // Cerrar pedido y mesa
@@ -432,24 +608,52 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
                 : $"Seleccionada: {_mesaSeleccionada.Nombre} ({_mesaSeleccionada.Estado})";
         }
 
-        // ======== ìB¡SCULAî SIMULADA ========
+        // ======== ‚ÄúB√ÅSCULA‚Äù SIMULADA ========
 
         private readonly Random _rnd = new Random();
+        private readonly Queue<decimal> _ultLecturas = new Queue<decimal>(5);
 
         private void SimularLecturaBascula()
         {
+            // Simulaci√≥n (80‚Äì350 g)
             decimal gramos = _rnd.Next(80, 351);
 
-            // Pedido (ya existÌa)
-            if (chkSimularBascula.Checked && txtPesoGr != null && !txtPesoGr.IsDisposed)
-                txtPesoGr.Text = gramos.ToString("0");
+            void push(decimal v)
+            {
+                if (_ultLecturas.Count == 5) _ultLecturas.Dequeue();
+                _ultLecturas.Enqueue(v);
+            }
 
-            // Inventario (nuevo)
+            // Pedido
+            if (chkSimularBascula.Checked && txtPesoGr != null && !txtPesoGr.IsDisposed)
+            {
+                txtPesoGr.Text = gramos.ToString("0");
+                push(gramos);
+                if (EsLecturaEstable() && lbPlatillos.SelectedItem is Platillo p && p.RequierePeso)
+                {
+                    AgregarPlatilloSeleccionado(); // auto-agrega con el peso estable actual
+                    _ultLecturas.Clear();
+                }
+            }
+
+            // Inventario
             if (chkInvSimularBascula.Checked && txtInvPesoGr != null && !txtInvPesoGr.IsDisposed)
             {
                 txtInvPesoGr.Text = gramos.ToString("0");
                 lblInvKg.Text = $"{(gramos / 1000m):N3} kg";
+                push(gramos);
+                // Aqu√≠ no auto-agregamos, requerimos clic o Enter
             }
+        }
+
+        private bool EsLecturaEstable()
+        {
+            if (_ultLecturas.Count < 5) return false;
+            var arr = _ultLecturas.ToArray();
+            decimal prom = arr.Average();
+            decimal var = arr.Select(x => (x - prom) * (x - prom)).Average();
+            // umbral: desviaci√≥n std <= 2g
+            return Math.Sqrt((double)var) <= 2.0;
         }
 
 
@@ -464,7 +668,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             // 2) BD Auxiliar (crear/actualizar CONFIG)
             try
             {
-                // Crea/abre la BD auxiliar en la raÌz del proyecto (o junto al .exe publicado)
+                // Crea/abre la BD auxiliar en la ra√≠z del proyecto (o junto al .exe publicado)
                 string auxPath;
                 using var auxConn = AuxDbInitializer.EnsureCreated(out auxPath, charset: "UTF8");
 
@@ -473,7 +677,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
                 {
                     var ping = cmd.ExecuteScalar();
                     if (Convert.ToInt32(ping) != 1)
-                        throw new Exception("Ping fallÛ en BD auxiliar.");
+                        throw new Exception("Ping fall√≥ en BD auxiliar.");
                 }
 
                 // Cuenta tablas de usuario (no del sistema)
@@ -511,18 +715,18 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
 
             }
-            
+
         }
 
         private void btnPruebaSae_Click(object sender, EventArgs e)
         {
-            // 1) ConexiÛn/prueba SAE
+            // 1) Conexi√≥n/prueba SAE
             try
             {
                 // Detecta la BD de SAE (Empresa 01 por defecto)
                 string saePath = Sae9Locator.FindSaeDatabase(empresa: 1);
 
-                // Crea conexiÛn a SAE (usa tu charset de SAE)
+                // Crea conexi√≥n a SAE (usa tu charset de SAE)
                 using var saeConn = SaeDb.CreateConnection(
                     databasePath: saePath,
                     server: "127.0.0.1",
@@ -532,10 +736,10 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
                     charset: "ISO8859_1"
                 );
 
-                // Ping + prueba mÌnima INVE01 (si existe)
+                // Ping + prueba m√≠nima INVE01 (si existe)
                 SaeDb.TestConnection(saeConn);
 
-                MessageBox.Show($"ConexiÛn SAE OK.\nFDB: {saePath}", "SAE 9",
+                MessageBox.Show($"Conexi√≥n SAE OK.\nFDB: {saePath}", "SAE 9",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
                 txtRutaSae.Text = saePath;
             }
@@ -544,7 +748,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
                 MessageBox.Show("Error SAE 9:\n" + ex.Message, "SAE 9",
                     MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
-            
+
         }
 
         public class InvArticulo
@@ -605,7 +809,7 @@ ORDER BY CVE_ART", sae);
             catch (Exception ex)
             {
                 MessageBox.Show("No fue posible leer INVE01 de SAE.\n" + ex.Message, "Inventario", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                // fallback: deja la lista vacÌa o con dummy
+                // fallback: deja la lista vac√≠a o con dummy
                 _invArticulos = new List<InvArticulo>();
                 lbInvArticulos.DataSource = _invArticulos;
             }
@@ -629,7 +833,7 @@ ORDER BY CVE_ART", sae);
             }
             if (!decimal.TryParse(txtInvPesoGr.Text, out var gramos) || gramos <= 0)
             {
-                MessageBox.Show("Lectura de peso inv·lida.");
+                MessageBox.Show("Lectura de peso inv√°lida.");
                 return;
             }
 
@@ -722,6 +926,30 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
+            if (tabMain.SelectedTab == tabPedido)
+            {
+                if (keyData == (Keys.Control | Keys.Enter)) { IrACobro(); return true; }
+                if (keyData == (Keys.Control | Keys.D) || keyData == Keys.Delete)
+                {
+                    if (_pedidoActual != null && dgvPedido.Focused && dgvPedido.CurrentRow?.DataBoundItem is PedidoDet d)
+                    {
+                        _pedidoActual.Detalles.Remove(d);
+                        int i = 1; foreach (var x in _pedidoActual.Detalles) x.Partida = i++;
+                        RecalcularTotales();
+                    }
+                    return true;
+                }
+                if (keyData == Keys.F2)
+                {
+                    if (decimal.TryParse(txtPesoGr.Text, out var gr) && dgvPedido.CurrentRow?.DataBoundItem is PedidoDet d && d.RequierePeso)
+                    { d.PesoGr = gr; dgvPedido.Refresh(); RecalcularTotales(); }
+                    return true;
+                }
+                if (keyData == (Keys.Control | Keys.K)) { txtBuscarPlatillo.Focus(); txtBuscarPlatillo.SelectAll(); return true; }
+            }
+
+            if (keyData == Keys.Escape) { tabMain.SelectedTab = tabMesas; return true; }
+            return base.ProcessCmdKey(ref msg, keyData);
             if (keyData == Keys.F5) { IrACobro(); return true; }
             if (keyData == Keys.Delete && dgvPedido.Focused)
             {
@@ -772,8 +1000,64 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         }
 
 
+        private bool ValidarCobro()
+        {
+            if (_pedidoActual == null || _pedidoActual.Detalles.Count == 0) { MessageBox.Show("No hay partidas."); return false; }
+
+            if (chkFacturarAhora.Checked)
+            {
+                if (!Regex.IsMatch(txtRFC.Text.Trim().ToUpperInvariant(), @"^([A-Z√ë&]{3,4})\d{6}[A-Z0-9]{3}$"))
+                { MessageBox.Show("RFC inv√°lido."); return false; }
+                if (string.IsNullOrWhiteSpace(cboUsoCFDI.Text)) { MessageBox.Show("Selecciona Uso CFDI."); return false; }
+            }
+
+            if (cboMetodoPago.SelectedIndex < 0) { MessageBox.Show("Selecciona m√©todo de pago."); return false; }
+            if (cboMetodoPago.Text.Equals("Efectivo", StringComparison.OrdinalIgnoreCase))
+            {
+                if (!decimal.TryParse(txtImporteRecibido.Text, out var rec)) { MessageBox.Show("Importe recibido inv√°lido."); return false; }
+                if (rec < _pedidoActual.Total) { MessageBox.Show("Importe insuficiente."); return false; }
+                var cambio = rec - _pedidoActual.Total;
+                lblCambio.Text = $"Cambio: ${cambio:N2}";
+            }
+            return true;
+        }
 
 
+        private void CargarConfigUI()
+        {
+            string auxPath;
+            using var aux = AuxDbInitializer.EnsureCreated(out auxPath, charset: "UTF8");
+            string Get(string k)
+            {
+                using var c = new FbCommand("SELECT VALOR FROM CONFIG WHERE CLAVE=@K", aux);
+                c.Parameters.Add(new FbParameter("@K", FbDbType.VarChar, 50) { Value = k });
+                var o = c.ExecuteScalar();
+                return o == null || o == DBNull.Value ? "" : o.ToString();
+            }
+
+            txtPuertoCom.Text = Get("BASCULA_PUERTO");
+            var imp = Get("IMPRESORA_TICKET");
+            if (!string.IsNullOrEmpty(imp) && cboImpresora.Items.Contains(imp)) cboImpresora.SelectedItem = imp;
+            cboAlmacen.Text = Get("ALMACEN_DEFAULT");
+            cboListaPrecios.Text = Get("LISTA_PRECIOS");
+        }
+
+        private void GuardarConfigUI()
+        {
+            string auxPath;
+            using var aux = AuxDbInitializer.EnsureCreated(out auxPath, charset: "UTF8");
+            AuxDbInitializer.UpsertConfig(aux, "BASCULA_PUERTO", txtPuertoCom.Text);
+            AuxDbInitializer.UpsertConfig(aux, "IMPRESORA_TICKET", cboImpresora.Text);
+            AuxDbInitializer.UpsertConfig(aux, "ALMACEN_DEFAULT", cboAlmacen.Text);
+            AuxDbInitializer.UpsertConfig(aux, "LISTA_PRECIOS", cboListaPrecios.Text);
+        }
+
+
+        private void btnConfirmarCobro_Click(object sender, EventArgs e)
+        {
+            if (!ValidarCobro()) return;
+            ConfirmarCobro();
+        }
 
 
 
@@ -786,7 +1070,43 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             AuxDbInitializer.UpsertConfig(aux, "BASCULA_PUERTO", txtPuertoCom.Text);
             AuxDbInitializer.UpsertConfig(aux, "ALMACEN_DEFAULT", cboAlmacen.Text);
             AuxDbInitializer.UpsertConfig(aux, "LISTA_PRECIOS", cboListaPrecios.Text);
-            MessageBox.Show("ConfiguraciÛn guardada.");
+            MessageBox.Show("Configuraci√≥n guardada.");
+        }
+
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            _timerBascula.Enabled = false;
+            _timerBascula.Dispose();
+        }
+
+        private bool CambiarEstadoMesa(Mesa m, MesaEstado nuevo)
+        {
+            var ok = (m.Estado, nuevo) switch
+            {
+                (MesaEstado.LIBRE, MesaEstado.OCUPADA) => true,
+                (MesaEstado.OCUPADA, MesaEstado.EN_CUENTA) => true,
+                (MesaEstado.EN_CUENTA, MesaEstado.CERRADA) => true,
+                (MesaEstado.OCUPADA, MesaEstado.CERRADA) => true, // por cancelaci√≥n
+                (MesaEstado.CERRADA, MesaEstado.LIBRE) => true,   // reapertura
+                _ => false
+            };
+            if (!ok) { MessageBox.Show($"Transici√≥n inv√°lida: {m.Estado} ‚Üí {nuevo}"); return false; }
+            m.Estado = nuevo; dgvMesas.Refresh(); return true;
+        }
+
+
+        private void lbInvArticulos_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            lbInvArticulos.DoubleClick += (s, e) => AgregarEntradaInventario();
+        }
+
+
+        // Bot√≥n "Aplicar costo a todos"
+        private void btnInvAplicarCostoTodos_Click(object sender, EventArgs e)
+        {
+            if (!decimal.TryParse(txtInvCostoKg.Text, out var c) || c < 0) { MessageBox.Show("Costo inv√°lido."); return; }
+            foreach (var it in _invEntradas) it.CostoKg = c;
+            dgvInvCaptura.Refresh(); RecalcularTotalesInventario();
         }
         //no se usa esto (y no borrar, si no, explota el programa)
 
@@ -801,13 +1121,10 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         }
 
 
-        private void lbInvArticulos_SelectedIndexChanged(object sender, EventArgs e)
-        {
+        
 
-        }
+        
 
         //hasta aqui lo que no se usa
     }///fin public partial class Form1 : Form
 }///fin namespace
-//prueba de que se actualize git
-//otra prueba   
