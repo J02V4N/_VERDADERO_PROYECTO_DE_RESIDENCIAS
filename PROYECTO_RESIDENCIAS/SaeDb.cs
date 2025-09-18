@@ -60,33 +60,4 @@ namespace PROYECTO_RESIDENCIAS
         }
     }
 }
-//otra fokin prueba para ver si ahora si logro hacer que guarde los cambios en git
-//prueba
-//prueba
-//prueba
-//prueba
-//prueba
-//prueba
-//prueba
-//prueba
-//prueba
-//prueba
-//prueba
-//prueba
-//prueba
-//prueba//prueba//prueba
-//prueba
-//prueba
-//prueba
-//prueba
-//prueba
-//prueba
-//prueba
-//prueba
-//prueba
-//prueba
-
-//prueba
-//prueba
-//prueba
-//prueba
+//mira march, aghora soi brasileiro
