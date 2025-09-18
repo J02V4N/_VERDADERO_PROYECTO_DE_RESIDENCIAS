@@ -6,6 +6,7 @@ using System.Drawing.Printing;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
+using static PROYECTO_RESIDENCIAS.Form1;
 
 namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 {
@@ -45,6 +46,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
         public class PedidoDet
         {
+            public string Notas { get; set; }  // <<< NUEVO: notas libres de la partida
             public int Partida { get; set; }
             public string Clave { get; set; }
             public string Nombre { get; set; }
@@ -176,6 +178,8 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             btnInvAgregar.Click += (s, e) => AgregarEntradaInventario();
             btnInvGuardarAux.Click += (s, e) => GuardarEntradasInventarioEnAux();
             btnInvLimpiar.Click += (s, e) => LimpiarCapturaInventario();
+            btnInvAplicarCostoTodos.Click += btnInvAplicarCostoTodos_Click;
+
 
             // Config grilla de inventario
             dgvInvCaptura.AutoGenerateColumns = false;
@@ -193,6 +197,33 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             // Carga inicial del catálogo desde SAE (si quieres al abrir)
             CargarInvArticulosDesdeSAE();
 
+
+
+            // ===== Mesas: Context menu y botones =====
+            var cmsMesas = new ContextMenuStrip();
+            cmsMesas.Items.Add("Atender", null, (s, e) => btnAbrirMesa.PerformClick());
+            cmsMesas.Items.Add("Precuenta", null, (s, e) => btnPrecuentaMesa.PerformClick());
+            cmsMesas.Items.Add("Transferir", null, (s, e) => btnTransferirMesa.PerformClick());
+            cmsMesas.Items.Add("Cambiar mesero", null, (s, e) => btnAsignarMesero.PerformClick());
+            cmsMesas.Items.Add("Cerrar", null, (s, e) => btnCerrarMesa.PerformClick());
+            cmsMesas.Items.Add("Reabrir", null, (s, e) => btnReabrirMesa.PerformClick());
+            dgvMesas.ContextMenuStrip = cmsMesas;
+
+            btnPrecuentaMesa.Click += (s, e) => PrecuentaMesa();
+            btnTransferirMesa.Click += (s, e) => TransferirMesa();
+            btnCerrarMesa.Click += (s, e) => CerrarMesa();
+            btnReabrirMesa.Click += (s, e) => ReabrirMesa();
+
+            // ===== Pedido: botones y menú contextual =====
+            btnDuplicarLinea.Click += btnDuplicarLinea_Click;
+            btnDividirLinea.Click += btnDividirLinea_Click;
+            btnNotasPartida.Click += btnNotasPartida_Click;
+
+            var cmsPedido = new ContextMenuStrip();
+            cmsPedido.Items.Add("Duplicar", null, (s, e) => btnDuplicarLinea.PerformClick());
+            cmsPedido.Items.Add("Eliminar", null, (s, e) => { if (dgvPedido.Focused) SendKeys.Send("{DELETE}"); });
+            cmsPedido.Items.Add("Notas", null, (s, e) => btnNotasPartida.PerformClick());
+            dgvPedido.ContextMenuStrip = cmsPedido;
 
         }
 
@@ -556,19 +587,34 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
         private void IrACobro()
         {
-            if (_pedidoActual == null || _pedidoActual.Detalles.Count == 0) return;
+            if (_pedidoActual == null || _pedidoActual.Detalles.Count == 0)
+                return;
+
+            // Resumen claro
+            var meseroNombre = _meseros.FirstOrDefault(x => x.Id == _pedidoActual.MeseroId)?.Nombre ?? "";
             lblResumenCobro.Text = $"Mesa: {_mesaSeleccionada?.Nombre}\n" +
-                                   $"Mesero: {_meseros.FirstOrDefault(x => x.Id == _pedidoActual.MeseroId)?.Nombre}\n" +
+                                   $"Mesero: {meseroNombre}\n" +
                                    $"Partidas: {_pedidoActual.Detalles.Count}\n" +
                                    $"Subtotal: ${_pedidoActual.Subtotal:N2}\n" +
                                    $"IVA: ${_pedidoActual.Impuesto:N2}\n" +
                                    $"TOTAL: ${_pedidoActual.Total:N2}";
 
+            // Facturación (apagada por defecto)
             chkFacturarAhora.Checked = false;
             txtRFC.Enabled = txtRazon.Enabled = cboUsoCFDI.Enabled = false;
 
+            // Cobro: dejar listo para teclear
+            if (cboMetodoPago.SelectedIndex < 0 && cboMetodoPago.Items.Count > 0)
+                cboMetodoPago.SelectedIndex = 0; // por ej. "Efectivo"
+
+            txtImporteRecibido.Text = string.Empty;
+            lblCambio.Text = "Cambio: $0.00";
+
+            // Ir a la pestaña y enfocar el primer control útil
             tabMain.SelectedTab = tabCobro;
+            if (cboMetodoPago.Focused == false) cboMetodoPago.Focus();
         }
+
 
         private void ToggleCamposFactura()
         {
@@ -624,12 +670,18 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
                 _ultLecturas.Enqueue(v);
             }
 
+            bool estable;
+
             // Pedido
             if (chkSimularBascula.Checked && txtPesoGr != null && !txtPesoGr.IsDisposed)
             {
                 txtPesoGr.Text = gramos.ToString("0");
                 push(gramos);
-                if (EsLecturaEstable() && lbPlatillos.SelectedItem is Platillo p && p.RequierePeso)
+                estable = EsLecturaEstable();
+                ActualizarPesoStatus(estable);
+
+                if (estable && (chkAutoAgregarPesables?.Checked ?? false) &&
+                    lbPlatillos.SelectedItem is Platillo p && p.RequierePeso)
                 {
                     AgregarPlatilloSeleccionado(); // auto-agrega con el peso estable actual
                     _ultLecturas.Clear();
@@ -642,8 +694,14 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
                 txtInvPesoGr.Text = gramos.ToString("0");
                 lblInvKg.Text = $"{(gramos / 1000m):N3} kg";
                 push(gramos);
-                // Aquí no auto-agregamos, requerimos clic o Enter
             }
+        }
+
+        private void ActualizarPesoStatus(bool estable)
+        {
+            if (lblPesoStatus == null) return;
+            lblPesoStatus.Text = estable ? "Estable" : "Inestable";
+            lblPesoStatus.ForeColor = estable ? Color.ForestGreen : Color.DarkRed;
         }
 
         private bool EsLecturaEstable()
@@ -980,9 +1038,8 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         private void txtImporteRecibido_TextChanged(object sender, EventArgs e)
         {
             if (_pedidoActual == null) return;
-            decimal recibido = 0m;
-            decimal.TryParse(txtImporteRecibido.Text, out recibido);
-            decimal cambio = Math.Max(0, recibido - _pedidoActual.Total);
+            decimal.TryParse(txtImporteRecibido.Text, out var rec);
+            var cambio = Math.Max(0, rec - (_pedidoActual?.Total ?? 0m));
             lblCambio.Text = $"Cambio: ${cambio:N2}";
         }
 
@@ -1015,8 +1072,8 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             if (cboMetodoPago.Text.Equals("Efectivo", StringComparison.OrdinalIgnoreCase))
             {
                 if (!decimal.TryParse(txtImporteRecibido.Text, out var rec)) { MessageBox.Show("Importe recibido inválido."); return false; }
-                if (rec < _pedidoActual.Total) { MessageBox.Show("Importe insuficiente."); return false; }
-                var cambio = rec - _pedidoActual.Total;
+                if (rec < (_pedidoActual?.Total ?? 0m)) { MessageBox.Show("Importe insuficiente."); return false; }
+                var cambio = rec - (_pedidoActual?.Total ?? 0m);
                 lblCambio.Text = $"Cambio: ${cambio:N2}";
             }
             return true;
@@ -1108,7 +1165,133 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             foreach (var it in _invEntradas) it.CostoKg = c;
             dgvInvCaptura.Refresh(); RecalcularTotalesInventario();
         }
-        //no se usa esto (y no borrar, si no, explota el programa)
+
+
+        // ===== Mesas =====
+        private void PrecuentaMesa()
+        {
+            if (_mesaSeleccionada == null) return;
+            MessageBox.Show($"Precuenta de {_mesaSeleccionada.Nombre}\n" +
+                            $"{_pedidoActual?.Detalles.Count ?? 0} partidas, Total: ${_pedidoActual?.Total ?? 0m:N2}",
+                            "Precuenta", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void TransferirMesa()
+        {
+            if (_mesaSeleccionada == null) return;
+            // Maquetado: solo diálogo
+            MessageBox.Show("Transferir mesa (maquetado). Aquí abrirías un selector de mesa destino.", "Transferir");
+        }
+
+        private void CerrarMesa()
+        {
+            if (_mesaSeleccionada == null) return;
+            if (!CambiarEstadoMesa(_mesaSeleccionada, MesaEstado.CERRADA)) return;
+            _pedidosAbiertos.Remove(_mesaSeleccionada.Id);
+            _pedidoActual = null; dgvPedido.DataSource = null; ActualizarUI();
+        }
+
+        private void ReabrirMesa()
+        {
+            if (_mesaSeleccionada == null) return;
+            CambiarEstadoMesa(_mesaSeleccionada, MesaEstado.LIBRE);
+            ActualizarUI();
+        }
+
+        // ===== Pedido =====
+        private void btnDuplicarLinea_Click(object sender, EventArgs e)
+        {
+            if (_pedidoActual == null) return;
+            if (dgvPedido.CurrentRow?.DataBoundItem is PedidoDet d)
+            {
+                var copy = new PedidoDet
+                {
+                    Partida = _pedidoActual.Detalles.Count + 1,
+                    Clave = d.Clave,
+                    Nombre = d.Nombre,
+                    Cantidad = d.Cantidad,
+                    PesoGr = d.PesoGr,
+                    PrecioUnit = d.PrecioUnit,
+                    RequierePeso = d.RequierePeso,
+                    Notas = d.Notas
+                };
+                _pedidoActual.Detalles.Add(copy);
+                ReindexDetalles(); RecalcularTotales();
+            }
+        }
+
+        private void btnDividirLinea_Click(object sender, EventArgs e)
+        {
+            if (_pedidoActual == null) return;
+            if (dgvPedido.CurrentRow?.DataBoundItem is PedidoDet d)
+            {
+                if (d.RequierePeso && (d.PesoGr ?? 0m) > 1)
+                {
+                    var mitad = Math.Round((d.PesoGr ?? 0m) / 2m, 0);
+                    d.PesoGr = mitad;
+                    var copy = new PedidoDet
+                    {
+                        Partida = _pedidoActual.Detalles.Count + 1,
+                        Clave = d.Clave,
+                        Nombre = d.Nombre,
+                        RequierePeso = true,
+                        PesoGr = mitad,
+                        Cantidad = 1,
+                        PrecioUnit = d.PrecioUnit,
+                        Notas = d.Notas
+                    };
+                    _pedidoActual.Detalles.Add(copy);
+                }
+                else if (!d.RequierePeso && d.Cantidad > 1m)
+                {
+                    var mitad = Math.Round(d.Cantidad / 2m, 2);
+                    d.Cantidad = mitad;
+                    var copy = new PedidoDet
+                    {
+                        Partida = _pedidoActual.Detalles.Count + 1,
+                        Clave = d.Clave,
+                        Nombre = d.Nombre,
+                        RequierePeso = false,
+                        Cantidad = mitad,
+                        PrecioUnit = d.PrecioUnit,
+                        Notas = d.Notas
+                    };
+                    _pedidoActual.Detalles.Add(copy);
+                }
+                ReindexDetalles(); RecalcularTotales();
+            }
+        }
+
+        private void btnNotasPartida_Click(object sender, EventArgs e)
+        {
+            if (_pedidoActual == null) return;
+            if (dgvPedido.CurrentRow?.DataBoundItem is PedidoDet d)
+            {
+                string nota = PromptNotas(d.Notas);
+                if (nota != null) { d.Notas = nota; dgvPedido.Refresh(); }
+            }
+        }
+
+        private void ReindexDetalles()
+        {
+            int i = 1; foreach (var x in _pedidoActual.Detalles) x.Partida = i++;
+            dgvPedido.Refresh();
+        }
+
+        // InputBox simple para notas
+        private string PromptNotas(string actual)
+        {
+            using var f = new Form { Width = 400, Height = 180, Text = "Notas", StartPosition = FormStartPosition.CenterParent };
+            var txt = new TextBox { Left = 10, Top = 10, Width = 360, Text = actual ?? "" };
+            var ok = new Button { Text = "OK", Left = 210, Top = 60, DialogResult = DialogResult.OK };
+            var cl = new Button { Text = "Cancelar", Left = 290, Top = 60, DialogResult = DialogResult.Cancel };
+            f.Controls.AddRange(new Control[] { txt, ok, cl }); f.AcceptButton = ok; f.CancelButton = cl;
+            return f.ShowDialog(this) == DialogResult.OK ? txt.Text : null;
+        }
+
+
+
+        //no se usa esto (y no borrar, si no, explota el programa)///////////////////////////////////////////////////////////////////////////////////
 
         private void txtRutaAux_TextChanged(object sender, EventArgs e)
         {
@@ -1120,11 +1303,16 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
 
         }
 
+        private void btnAbrirMesa_Click(object sender, EventArgs e)
+        {
 
-        
+        }
 
-        
+        private void btnReimprimir_Click(object sender, EventArgs e)
+        {
 
-        //hasta aqui lo que no se usa
+        }
+
+        //hasta aqui lo que no se usa////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     }///fin public partial class Form1 : Form
 }///fin namespace
