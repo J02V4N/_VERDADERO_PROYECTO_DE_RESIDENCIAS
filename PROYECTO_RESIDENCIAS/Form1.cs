@@ -225,6 +225,16 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             cmsPedido.Items.Add("Notas", null, (s, e) => btnNotasPartida.PerformClick());
             dgvPedido.ContextMenuStrip = cmsPedido;
 
+            // Por ejemplo en Form1_Load, después de probar SAE:
+            try
+            {
+                var articulos = SaeCatalog.CargarArticulosBasicos(empresa: 1);
+                // mapea a tu _platillos o combina con los que ya tenías
+                // _platillos = articulos;
+                // lbPlatillos.DataSource = _platillos;
+            }
+            catch { /* si falla, dejas el seed */ }
+
         }
 
 
@@ -1114,6 +1124,33 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         {
             if (!ValidarCobro()) return;
             ConfirmarCobro();
+            if (!ValidarCobro()) return;
+
+            // Recalcula por si acaso
+            PosEngine.RecalcularPedido(_pedidoActual);
+
+            // Parseo de efectivo recibido (o 0 para tarjeta)
+            decimal.TryParse(txtImporteRecibido.Text, out var recibido);
+
+            int idAux = AuxRepository.GuardarPedido(
+                _pedidoActual,
+                _mesaSeleccionada.Id,
+                chkFacturarAhora.Checked,
+                cboMetodoPago.Text,
+                cboFormaPago.Text,
+                recibido
+            );
+
+            // (Opcional) guardar el id en el pedido para futuras reimpresiones
+            _pedidoActual.IdAux = idAux;
+
+            // Marcar mesa en EN_CUENTA → CERRADA (tu flujo)
+            CambiarEstadoMesa(_mesaSeleccionada, MesaEstado.CERRADA);
+
+            // Limpiar UI / volver a Mesas
+            MessageBox.Show($"Venta registrada (Aux ID: {idAux}).", "Cobro", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            tabMain.SelectedTab = tabMesas;
+
         }
 
 
