@@ -78,10 +78,20 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             public int MeseroId { get; set; }
             public BindingList<PedidoDet> Detalles { get; set; } = new BindingList<PedidoDet>();
             public bool FacturarAhora { get; set; }
+
+            // >>> NUEVAS (auxiliar + facturación)
+            public int? IdAux { get; set; } = null;        // ID del pedido en la BD auxiliar
+            public string ClienteClaveSae { get; set; } = ""; // Clave de cliente (MOSTRADOR u otra)
+            public string Rfc { get; set; } = "";
+            public string RazonSocial { get; set; } = "";
+            public string UsoCfdi { get; set; } = "";
+            public string Observaciones { get; set; } = "";
+
             public decimal Subtotal => Math.Round(Detalles.Sum(d => d.Importe), 2);
             public decimal Impuesto => Math.Round(Subtotal * 0.16m, 2);
             public decimal Total => Math.Round(Subtotal + Impuesto, 2);
         }
+
 
         // ======== DATOS EN MEMORIA ========
         private BindingList<Mesa> _mesas = new BindingList<Mesa>();
@@ -225,10 +235,20 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             cmsPedido.Items.Add("Notas", null, (s, e) => btnNotasPartida.PerformClick());
             dgvPedido.ContextMenuStrip = cmsPedido;
 
+            // Por ejemplo en Form1_Load, después de probar SAE:
+            try
+            {
+                var articulos = SaeCatalog.CargarArticulosBasicos(empresa: 1);
+                // mapea a tu _platillos o combina con los que ya tenías
+                // _platillos = articulos;
+                // lbPlatillos.DataSource = _platillos;
+            }
+            catch { /* si falla, dejas el seed */ }
+
         }
 
 
-        //TOOL STRIP ------------------------------------------------------------------------------------------------------------------------
+        //TOOL STRIP ----------------------------------------------------------------------------------------------------------------------
 
         private void UpdateStatus(string who, bool ok)
         {
@@ -627,24 +647,83 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
         private void ConfirmarCobro()
         {
             if (_pedidoActual == null) return;
+            if (!ValidarCobro()) return;
 
-            _pedidoActual.FacturarAhora = chkFacturarAhora.Checked;
-            // Aquí solo simulamos “cobrado”
-            MessageBox.Show(_pedidoActual.FacturarAhora
-                ? "Cobro confirmado. (Simulación) Facturar ahora."
-                : "Cobro confirmado. (Simulación) Ticket / Facturar después.",
-                "OK", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            // 1) Guardar pedido en AUX
+            string auxPath;
+            using var aux = AuxDbInitializer.EnsureCreated(out auxPath, charset: "UTF8");
 
-            // Cerrar pedido y mesa
-            _mesaSeleccionada.Estado = MesaEstado.CERRADA;
+            // Recuperar ID_MESA_TURNO actual (si ya lo manejas); aquí de ejemplo lo busco por mesa abierta
+            int idMesaTurno = 0;
+            using (var c = new FbCommand(@"
+select mt.id_mesa_turno
+from mesa_turno mt
+join turnos t on t.id_turno=mt.id_turno
+where mt.id_mesa=@M AND t.fecha=current_date
+rows 1", aux))
+            {
+                c.Parameters.Add(new FbParameter("@M", _mesaSeleccionada.Id));
+                var o = c.ExecuteScalar();
+                if (o != null && o != DBNull.Value) idMesaTurno = Convert.ToInt32(o);
+            }
+            if (idMesaTurno == 0) { MessageBox.Show("No hay turno abierto para la mesa."); return; }
+
+            var idPedido = AuxRepository.GuardarPedido(
+                _pedidoActual, idMesaTurno, chkFacturarAhora.Checked,
+                cboMetodoPago.Text, cboFormaPago.Text, txtImporteRecibido.Text, "UTF8");
+
+            // 2) Parámetros operativos (CONFIG)
+            string almacenStr = AuxDbInitializer.GetConfig(aux, "ALMACEN_DEFAULT") ?? "1";
+            int numAlmacen = int.TryParse(almacenStr, out var a) ? a : 1;
+            string cptoStr = AuxDbInitializer.GetConfig(aux, "CVE_CPTO_CONSUMO") ?? "51";
+            int cveCpto = int.TryParse(cptoStr, out var c) ? c : 51;
+            string clienteDefault = AuxDbInitializer.GetConfig(aux, "CLIENTE_MOSTRADOR") ?? "MOSTRADOR";
+
+            // 3) Conexión SAE y ruta FDB real
+            var fdb = Sae9Locator.FindSaeDatabase(1);
+            using var sae = SaeDb.CreateConnection(fdb, "127.0.0.1", 3050, "SYSDBA", "masterkey", "ISO8859_1");
+            sae.Open();
+
+            // 4) Expandir recetas → MINVE01 (consumo MP)
+            SaeInventory.ConsumirRecetasYPostear(sae, idPedido, numAlmacen, cveCpto, "UTF8");
+
+            // 5) Documento de venta (Remisión o Factura) con partidas del pedido
+            string cveCliente = _pedidoActual.ClienteClaveSae;
+            if (string.IsNullOrWhiteSpace(cveCliente)) cveCliente = clienteDefault;
+
+            var partidas = _pedidoActual.Detalles.Select(d => (
+                cveArt: d.Clave,
+                cant: d.RequierePeso ? 1m : d.Cantidad, // el pesable lo valoras por precio/kg con g/1000 ya aplicado en el cálculo del importe
+                precio: d.PrecioUnit,
+                uniVenta: d.RequierePeso ? "PZA" : "PZA" // ajusta si vendes PT en otra unidad
+            )).ToArray();
+
+            // Serie/Folio
+            if (chkFacturarAhora.Checked)
+            {
+                var fol = SaeSales.NextFolio(sae, "F");
+                SaeSales.InsertFactura(sae, fol.CveDoc, cveCliente, numAlmacen,
+                    DateTime.Now, _pedidoActual.Subtotal, _pedidoActual.Impuesto, _pedidoActual.Total, partidas, 16.0);
+                MessageBox.Show($"Factura generada: {fol.CveDoc}", "Cobro", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                var fol = SaeSales.NextFolio(sae, "R");
+                SaeSales.InsertRemision(sae, fol.CveDoc, cveCliente, numAlmacen,
+                    DateTime.Now, _pedidoActual.Subtotal, _pedidoActual.Impuesto, _pedidoActual.Total, partidas, 16.0);
+                MessageBox.Show($"Remisión generada: {fol.CveDoc}", "Cobro", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+
+            // 6) Cierre visual
+            CambiarEstadoMesa(_mesaSeleccionada, MesaEstado.CERRADA);
             _pedidosAbiertos.Remove(_mesaSeleccionada.Id);
             _pedidoActual = null;
             dgvPedido.DataSource = null;
             lblTotales.Text = "Subtotal: $0.00   IVA: $0.00   Total: $0.00";
-
             tabMain.SelectedTab = tabMesas;
             ActualizarUI();
         }
+
 
         private void ActualizarUI()
         {
@@ -1086,9 +1165,9 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             using var aux = AuxDbInitializer.EnsureCreated(out auxPath, charset: "UTF8");
             string Get(string k)
             {
-                using var c = new FbCommand("SELECT VALOR FROM CONFIG WHERE CLAVE=@K", aux);
-                c.Parameters.Add(new FbParameter("@K", FbDbType.VarChar, 50) { Value = k });
-                var o = c.ExecuteScalar();
+                using var cmdCfg = new FbCommand("SELECT VALOR FROM CONFIG WHERE CLAVE=@K", aux);
+                cmdCfg.Parameters.Add(new FbParameter("@K", FbDbType.VarChar, 50) { Value = k });
+                var o = cmdCfg.ExecuteScalar();
                 return o == null || o == DBNull.Value ? "" : o.ToString();
             }
 
@@ -1114,6 +1193,33 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         {
             if (!ValidarCobro()) return;
             ConfirmarCobro();
+            if (!ValidarCobro()) return;
+
+            // Recalcula por si acaso
+            PosEngine.RecalcularPedido(_pedidoActual);
+
+            // Parseo de efectivo recibido (o 0 para tarjeta)
+            decimal.TryParse(txtImporteRecibido.Text, out var recibido);
+
+            int idAux = AuxRepository.GuardarPedido(
+                _pedidoActual,
+                _mesaSeleccionada.Id,
+                chkFacturarAhora.Checked,
+                cboMetodoPago.Text,
+                cboFormaPago.Text,
+                recibido
+            );
+
+            // (Opcional) guardar el id en el pedido para futuras reimpresiones
+            _pedidoActual.IdAux = idAux;
+
+            // Marcar mesa en EN_CUENTA → CERRADA (tu flujo)
+            CambiarEstadoMesa(_mesaSeleccionada, MesaEstado.CERRADA);
+
+            // Limpiar UI / volver a Mesas
+            MessageBox.Show($"Venta registrada (Aux ID: {idAux}).", "Cobro", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            tabMain.SelectedTab = tabMesas;
+
         }
 
 
@@ -1289,6 +1395,33 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             return f.ShowDialog(this) == DialogResult.OK ? txt.Text : null;
         }
 
+
+        private void ImprimirTicket(string impresora, int idPedido)
+        {
+            var pd = new PrintDocument();
+            pd.PrinterSettings.PrinterName = impresora;
+            pd.PrintPage += (s, e) =>
+            {
+                float y = 0;
+                Font f = new Font("Consolas", 9);
+                e.Graphics.DrawString("RESTAURANTE XYZ", f, Brushes.Black, 0, y); y += 16;
+                e.Graphics.DrawString($"Pedido: {idPedido}", f, Brushes.Black, 0, y); y += 16;
+                e.Graphics.DrawString($"Fecha: {DateTime.Now:dd/MM/yyyy HH:mm}", f, Brushes.Black, 0, y); y += 16;
+                e.Graphics.DrawString(new string('-', 32), f, Brushes.Black, 0, y); y += 16;
+
+                foreach (var d in _pedidoActual.Detalles)
+                {
+                    string linea = $"{(d.RequierePeso ? "1.00" : d.Cantidad.ToString("0.##")).PadLeft(5)} x {d.PrecioUnit,7:0.00} {d.Nombre}";
+                    e.Graphics.DrawString(linea, f, Brushes.Black, 0, y); y += 16;
+                }
+                e.Graphics.DrawString(new string('-', 32), f, Brushes.Black, 0, y); y += 16;
+                e.Graphics.DrawString($"SUBTOTAL: {_pedidoActual.Subtotal:0.00}", f, Brushes.Black, 0, y); y += 16;
+                e.Graphics.DrawString($"IVA:      {_pedidoActual.Impuesto:0.00}", f, Brushes.Black, 0, y); y += 16;
+                e.Graphics.DrawString($"TOTAL:    {_pedidoActual.Total:0.00}", f, Brushes.Black, 0, y); y += 20;
+                e.Graphics.DrawString("¡Gracias por su preferencia!", f, Brushes.Black, 0, y);
+            };
+            pd.Print();
+        }
 
 
         //no se usa esto (y no borrar, si no, explota el programa)///////////////////////////////////////////////////////////////////////////////////
