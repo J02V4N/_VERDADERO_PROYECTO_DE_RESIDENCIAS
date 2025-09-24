@@ -13,17 +13,18 @@ namespace PROYECTO_RESIDENCIAS
 
             foreach (var d in pedido.Detalles)
             {
-                decimal baseCalc = d.RequierePeso
-                    ? Math.Max(0m, (d.PesoGr ?? 0m) / 1000m)       // gramos -> kg
-                    : Math.Max(0m, d.Cantidad);
-
-                d.Importe = Math.Round(baseCalc * d.PrecioUnit, 2, MidpointRounding.AwayFromZero);
+                // NO asignes d.Importe.
+                // Si cambió Cantidad, PesoGr o PrecioUnit, el getter de Importe recalculará solo.
+                // Aquí podrías normalizar mínimos o redondeos, p. ej.:
+                if (!d.RequierePeso)
+                    d.Cantidad = Math.Max(0.01m, d.Cantidad);
+                else
+                    d.PesoGr = Math.Max(0m, d.PesoGr ?? 0m);
             }
 
-            pedido.Subtotal = Math.Round(pedido.Detalles.Sum(x => x.Importe), 2, MidpointRounding.AwayFromZero);
-            pedido.Impuesto = Math.Round(pedido.Subtotal * ivaPct, 2, MidpointRounding.AwayFromZero);
-            pedido.Total = Math.Round(pedido.Subtotal + pedido.Impuesto, 2, MidpointRounding.AwayFromZero);
+            // NO asignes Subtotal/Impuesto/Total: están calculados en la clase Pedido.
         }
+
 
         public static PedidoDet CrearPartida(Platillo p, decimal? pesoGr = null, decimal? cantidad = 1m)
         {
@@ -34,7 +35,7 @@ namespace PROYECTO_RESIDENCIAS
                 RequierePeso = p.RequierePeso,
                 PesoGr = p.RequierePeso ? (pesoGr ?? 0m) : null,
                 Cantidad = p.RequierePeso ? 1m : Math.Max(0.01m, cantidad ?? 1m),
-                PrecioUnit = p.Precio, // por ahora viene del seed/UI
+                PrecioUnit = p.PrecioUnit // por ahora viene del seed/UI
             };
         }
 

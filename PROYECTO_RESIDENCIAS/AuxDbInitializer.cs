@@ -476,4 +476,12 @@ END;");
 
     }
 
-}
+    public static string GetConfig(FbConnection conn, string clave)
+        {
+            using var cmd = new FbCommand("SELECT VALOR FROM CONFIG WHERE CLAVE=@CLAVE", conn);
+            cmd.Parameters.Add(new FbParameter("@CLAVE", FbDbType.VarChar, 50) { Value = clave });
+            var o = cmd.ExecuteScalar();
+            return (o == null || o == DBNull.Value) ? "" : o.ToString();
+        }
+
+    }
