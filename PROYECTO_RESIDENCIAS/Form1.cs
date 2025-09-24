@@ -1316,3 +1316,6 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         //hasta aqui lo que no se usa////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     }///fin public partial class Form1 : Form
 }///fin namespace
+
+
+//este si sirve
