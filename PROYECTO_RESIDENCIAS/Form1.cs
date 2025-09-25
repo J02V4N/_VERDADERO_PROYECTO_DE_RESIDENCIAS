@@ -81,6 +81,22 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             public decimal Total => Math.Round(Subtotal + Impuesto, 2);
         }
 
+
+
+        private string GetSaePathFromAuxConfig()
+        {
+            string auxPath;
+            using (var auxConn = AuxDbInitializer.EnsureCreated(out auxPath, charset: "UTF8"))
+            using (var cmd = new FbCommand("SELECT VALOR FROM CONFIG WHERE CLAVE='SAE_FDB'", auxConn))
+            {
+                var o = cmd.ExecuteScalar();
+                var path = o?.ToString();
+                if (string.IsNullOrWhiteSpace(path))
+                    throw new Exception("CONFIG.SAE_FDB está vacío. Selecciona la empresa desde el selector.");
+                return path;
+            }
+        }
+
         // ======== DATOS EN MEMORIA ========
         private BindingList<Mesa> _mesas = new BindingList<Mesa>();
         private List<Mesero> _meseros = new List<Mesero>();
@@ -724,20 +740,30 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             try
             {
                 // Detecta la BD de SAE (Empresa 01 por defecto)
-                string saePath = Sae9Locator.FindSaeDatabase(empresa: 1);
-
-                // Crea conexión a SAE (usa tu charset de SAE)
+                string saePath = GetSaePathFromAuxConfig();
                 using var saeConn = SaeDb.CreateConnection(
                     databasePath: saePath,
                     server: "127.0.0.1",
                     port: 3050,
                     user: "SYSDBA",
                     password: "masterkey",
-                    charset: "ISO8859_1"
-                );
+                    charset: "ISO8859_1");
+                SaeDb.TestConnection(saeConn);
+                txtRutaSae.Text = saePath;
+
+
+                // Crea conexión a SAE (usa tu charset de SAE)
+                //using var saeConn = SaeDb.CreateConnection(
+                    //databasePath: saePath,
+                    //server: "127.0.0.1",
+                   // port: 3050,
+                    //user: "SYSDBA",
+                   // password: "masterkey",
+                 //   charset: "ISO8859_1"
+               // );
 
                 // Ping + prueba mínima INVE01 (si existe)
-                SaeDb.TestConnection(saeConn);
+                //SaeDb.TestConnection(saeConn);
 
                 MessageBox.Show($"Conexión SAE OK.\nFDB: {saePath}", "SAE 9",
                     MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -780,9 +806,10 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
         {
             try
             {
-                string saePath = Sae9Locator.FindSaeDatabase(1);
-                using var sae = SaeDb.CreateConnection(saePath, server: "127.0.0.1", port: 3050,
-                                                       user: "SYSDBA", password: "masterkey", charset: "ISO8859_1");
+                string saePath = GetSaePathFromAuxConfig();
+                using var sae = SaeDb.CreateConnection(
+                    saePath, server: "127.0.0.1", port: 3050,
+                    user: "SYSDBA", password: "masterkey", charset: "ISO8859_1");
                 sae.Open();
                 using var cmd = new FbCommand(@"
 SELECT FIRST 500
@@ -1100,7 +1127,6 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             lbInvArticulos.DoubleClick += (s, e) => AgregarEntradaInventario();
         }
 
-
         // Botón "Aplicar costo a todos"
         private void btnInvAplicarCostoTodos_Click(object sender, EventArgs e)
         {
@@ -1108,6 +1134,18 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             foreach (var it in _invEntradas) it.CostoKg = c;
             dgvInvCaptura.Refresh(); RecalcularTotalesInventario();
         }
+
+
+
+
+
+
+        
+
+
+
+
+
         //no se usa esto (y no borrar, si no, explota el programa)
 
         private void txtRutaAux_TextChanged(object sender, EventArgs e)
