@@ -35,22 +35,12 @@
             tslAux = new ToolStripStatusLabel();
             tslBascula = new ToolStripStatusLabel();
             panel1 = new Panel();
-            lblMesaTiempo = new Label();
-            btnReabrirMesa = new Button();
-            btnCerrarMesa = new Button();
-            btnTransferirMesa = new Button();
-            btnPrecuentaMesa = new Button();
             btnAsignarMesero = new Button();
             btnAbrirMesa = new Button();
             lblMesaSel = new Label();
             cboMesero = new ComboBox();
             dgvMesas = new DataGridView();
             tabPedido = new TabPage();
-            btnNotasPartida = new Button();
-            btnDividirLinea = new Button();
-            btnDuplicarLinea = new Button();
-            chkAutoAgregarPesables = new CheckBox();
-            lblPesoStatus = new Label();
             txtBuscarPlatillo = new TextBox();
             btnIrCobro = new Button();
             lblTotales = new Label();
@@ -72,7 +62,6 @@
             txtRFC = new TextBox();
             chkFacturarAhora = new CheckBox();
             tabInventario = new TabPage();
-            btnInvAplicarCostoTodos = new Button();
             btnInvLimpiar = new Button();
             btnInvEliminar = new Button();
             btnInvGuardarAux = new Button();
@@ -166,11 +155,6 @@
             // 
             // panel1
             // 
-            panel1.Controls.Add(lblMesaTiempo);
-            panel1.Controls.Add(btnReabrirMesa);
-            panel1.Controls.Add(btnCerrarMesa);
-            panel1.Controls.Add(btnTransferirMesa);
-            panel1.Controls.Add(btnPrecuentaMesa);
             panel1.Controls.Add(btnAsignarMesero);
             panel1.Controls.Add(btnAbrirMesa);
             panel1.Controls.Add(lblMesaSel);
@@ -181,54 +165,9 @@
             panel1.Size = new Size(406, 416);
             panel1.TabIndex = 3;
             // 
-            // lblMesaTiempo
-            // 
-            lblMesaTiempo.AutoSize = true;
-            lblMesaTiempo.Location = new Point(247, 130);
-            lblMesaTiempo.Name = "lblMesaTiempo";
-            lblMesaTiempo.Size = new Size(34, 15);
-            lblMesaTiempo.TabIndex = 10;
-            lblMesaTiempo.Text = "00:00";
-            // 
-            // btnReabrirMesa
-            // 
-            btnReabrirMesa.Location = new Point(306, 165);
-            btnReabrirMesa.Name = "btnReabrirMesa";
-            btnReabrirMesa.Size = new Size(75, 23);
-            btnReabrirMesa.TabIndex = 9;
-            btnReabrirMesa.Text = "Reabrir";
-            btnReabrirMesa.UseVisualStyleBackColor = true;
-            // 
-            // btnCerrarMesa
-            // 
-            btnCerrarMesa.Location = new Point(306, 122);
-            btnCerrarMesa.Name = "btnCerrarMesa";
-            btnCerrarMesa.Size = new Size(75, 23);
-            btnCerrarMesa.TabIndex = 8;
-            btnCerrarMesa.Text = "Cerrar Mesa";
-            btnCerrarMesa.UseVisualStyleBackColor = true;
-            // 
-            // btnTransferirMesa
-            // 
-            btnTransferirMesa.Location = new Point(306, 78);
-            btnTransferirMesa.Name = "btnTransferirMesa";
-            btnTransferirMesa.Size = new Size(75, 23);
-            btnTransferirMesa.TabIndex = 7;
-            btnTransferirMesa.Text = "Transferir";
-            btnTransferirMesa.UseVisualStyleBackColor = true;
-            // 
-            // btnPrecuentaMesa
-            // 
-            btnPrecuentaMesa.Location = new Point(306, 34);
-            btnPrecuentaMesa.Name = "btnPrecuentaMesa";
-            btnPrecuentaMesa.Size = new Size(75, 23);
-            btnPrecuentaMesa.TabIndex = 6;
-            btnPrecuentaMesa.Text = "Precuenta";
-            btnPrecuentaMesa.UseVisualStyleBackColor = true;
-            // 
             // btnAsignarMesero
             // 
-            btnAsignarMesero.Location = new Point(146, 35);
+            btnAsignarMesero.Location = new Point(293, 43);
             btnAsignarMesero.Name = "btnAsignarMesero";
             btnAsignarMesero.Size = new Size(75, 23);
             btnAsignarMesero.TabIndex = 5;
@@ -238,7 +177,7 @@
             // btnAbrirMesa
             // 
             btnAbrirMesa.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnAbrirMesa.Location = new Point(6, 78);
+            btnAbrirMesa.Location = new Point(146, 168);
             btnAbrirMesa.Name = "btnAbrirMesa";
             btnAbrirMesa.Size = new Size(121, 23);
             btnAbrirMesa.TabIndex = 1;
@@ -249,7 +188,7 @@
             // 
             lblMesaSel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             lblMesaSel.AutoSize = true;
-            lblMesaSel.Location = new Point(6, 17);
+            lblMesaSel.Location = new Point(184, 25);
             lblMesaSel.Name = "lblMesaSel";
             lblMesaSel.Size = new Size(125, 15);
             lblMesaSel.TabIndex = 0;
@@ -260,7 +199,7 @@
             cboMesero.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             cboMesero.DropDownStyle = ComboBoxStyle.DropDownList;
             cboMesero.FormattingEnabled = true;
-            cboMesero.Location = new Point(6, 35);
+            cboMesero.Location = new Point(146, 43);
             cboMesero.Name = "cboMesero";
             cboMesero.Size = new Size(121, 23);
             cboMesero.TabIndex = 2;
@@ -285,11 +224,6 @@
             // 
             // tabPedido
             // 
-            tabPedido.Controls.Add(btnNotasPartida);
-            tabPedido.Controls.Add(btnDividirLinea);
-            tabPedido.Controls.Add(btnDuplicarLinea);
-            tabPedido.Controls.Add(chkAutoAgregarPesables);
-            tabPedido.Controls.Add(lblPesoStatus);
             tabPedido.Controls.Add(txtBuscarPlatillo);
             tabPedido.Controls.Add(btnIrCobro);
             tabPedido.Controls.Add(lblTotales);
@@ -305,53 +239,6 @@
             tabPedido.TabIndex = 1;
             tabPedido.Text = "tabPedido";
             tabPedido.UseVisualStyleBackColor = true;
-            // 
-            // btnNotasPartida
-            // 
-            btnNotasPartida.Location = new Point(672, 151);
-            btnNotasPartida.Name = "btnNotasPartida";
-            btnNotasPartida.Size = new Size(75, 23);
-            btnNotasPartida.TabIndex = 19;
-            btnNotasPartida.Text = "Notas";
-            btnNotasPartida.UseVisualStyleBackColor = true;
-            // 
-            // btnDividirLinea
-            // 
-            btnDividirLinea.Location = new Point(289, 165);
-            btnDividirLinea.Name = "btnDividirLinea";
-            btnDividirLinea.Size = new Size(109, 23);
-            btnDividirLinea.TabIndex = 18;
-            btnDividirLinea.Text = "Dividir";
-            btnDividirLinea.UseVisualStyleBackColor = true;
-            // 
-            // btnDuplicarLinea
-            // 
-            btnDuplicarLinea.Location = new Point(289, 136);
-            btnDuplicarLinea.Name = "btnDuplicarLinea";
-            btnDuplicarLinea.Size = new Size(109, 23);
-            btnDuplicarLinea.TabIndex = 17;
-            btnDuplicarLinea.Text = "Duplicar";
-            btnDuplicarLinea.UseVisualStyleBackColor = true;
-            // 
-            // chkAutoAgregarPesables
-            // 
-            chkAutoAgregarPesables.AutoSize = true;
-            chkAutoAgregarPesables.Location = new Point(464, 52);
-            chkAutoAgregarPesables.Name = "chkAutoAgregarPesables";
-            chkAutoAgregarPesables.Size = new Size(145, 19);
-            chkAutoAgregarPesables.TabIndex = 16;
-            chkAutoAgregarPesables.Text = "Auto-agregar pesables";
-            chkAutoAgregarPesables.UseVisualStyleBackColor = true;
-            // 
-            // lblPesoStatus
-            // 
-            lblPesoStatus.AutoSize = true;
-            lblPesoStatus.ForeColor = Color.DarkRed;
-            lblPesoStatus.Location = new Point(404, 56);
-            lblPesoStatus.Name = "lblPesoStatus";
-            lblPesoStatus.Size = new Size(54, 15);
-            lblPesoStatus.TabIndex = 15;
-            lblPesoStatus.Text = "Inestable";
             // 
             // txtBuscarPlatillo
             // 
@@ -396,7 +283,7 @@
             // 
             // btnAgregarLinea
             // 
-            btnAgregarLinea.Location = new Point(289, 107);
+            btnAgregarLinea.Location = new Point(346, 112);
             btnAgregarLinea.Name = "btnAgregarLinea";
             btnAgregarLinea.Size = new Size(109, 23);
             btnAgregarLinea.TabIndex = 10;
@@ -405,7 +292,7 @@
             // 
             // txtPesoGr
             // 
-            txtPesoGr.Location = new Point(289, 53);
+            txtPesoGr.Location = new Point(346, 58);
             txtPesoGr.Name = "txtPesoGr";
             txtPesoGr.ReadOnly = true;
             txtPesoGr.Size = new Size(109, 23);
@@ -415,7 +302,7 @@
             // chkSimularBascula
             // 
             chkSimularBascula.AutoSize = true;
-            chkSimularBascula.Location = new Point(289, 82);
+            chkSimularBascula.Location = new Point(346, 87);
             chkSimularBascula.Name = "chkSimularBascula";
             chkSimularBascula.Size = new Size(109, 19);
             chkSimularBascula.TabIndex = 8;
@@ -556,7 +443,6 @@
             // 
             // tabInventario
             // 
-            tabInventario.Controls.Add(btnInvAplicarCostoTodos);
             tabInventario.Controls.Add(btnInvLimpiar);
             tabInventario.Controls.Add(btnInvEliminar);
             tabInventario.Controls.Add(btnInvGuardarAux);
@@ -577,18 +463,9 @@
             tabInventario.Text = "tabInventario";
             tabInventario.UseVisualStyleBackColor = true;
             // 
-            // btnInvAplicarCostoTodos
-            // 
-            btnInvAplicarCostoTodos.Location = new Point(678, 85);
-            btnInvAplicarCostoTodos.Name = "btnInvAplicarCostoTodos";
-            btnInvAplicarCostoTodos.Size = new Size(96, 23);
-            btnInvAplicarCostoTodos.TabIndex = 13;
-            btnInvAplicarCostoTodos.Text = "Costo a todos";
-            btnInvAplicarCostoTodos.UseVisualStyleBackColor = true;
-            // 
             // btnInvLimpiar
             // 
-            btnInvLimpiar.Location = new Point(506, 173);
+            btnInvLimpiar.Location = new Point(599, 141);
             btnInvLimpiar.Name = "btnInvLimpiar";
             btnInvLimpiar.Size = new Size(75, 23);
             btnInvLimpiar.TabIndex = 12;
@@ -597,7 +474,7 @@
             // 
             // btnInvEliminar
             // 
-            btnInvEliminar.Location = new Point(390, 173);
+            btnInvEliminar.Location = new Point(483, 141);
             btnInvEliminar.Name = "btnInvEliminar";
             btnInvEliminar.Size = new Size(91, 23);
             btnInvEliminar.TabIndex = 11;
@@ -607,7 +484,7 @@
             // 
             // btnInvGuardarAux
             // 
-            btnInvGuardarAux.Location = new Point(269, 173);
+            btnInvGuardarAux.Location = new Point(362, 141);
             btnInvGuardarAux.Name = "btnInvGuardarAux";
             btnInvGuardarAux.Size = new Size(99, 23);
             btnInvGuardarAux.TabIndex = 10;
@@ -617,7 +494,7 @@
             // lblInvTotales
             // 
             lblInvTotales.AutoSize = true;
-            lblInvTotales.Location = new Point(360, 155);
+            lblInvTotales.Location = new Point(381, 113);
             lblInvTotales.Name = "lblInvTotales";
             lblInvTotales.Size = new Size(150, 15);
             lblInvTotales.TabIndex = 9;
@@ -912,16 +789,5 @@
         private ToolStripStatusLabel tslSae;
         private ToolStripStatusLabel tslAux;
         private ToolStripStatusLabel tslBascula;
-        private Button btnPrecuentaMesa;
-        private Button btnCerrarMesa;
-        private Button btnTransferirMesa;
-        private Label lblMesaTiempo;
-        private Button btnReabrirMesa;
-        private Label lblPesoStatus;
-        private CheckBox chkAutoAgregarPesables;
-        private Button btnDuplicarLinea;
-        private Button btnDividirLinea;
-        private Button btnNotasPartida;
-        private Button btnInvAplicarCostoTodos;
     }
 }

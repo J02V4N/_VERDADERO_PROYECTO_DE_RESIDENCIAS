@@ -244,4 +244,4 @@ namespace PROYECTO_RESIDENCIAS
         }
     }
 }
-//este si sirve
+//este si funciona
