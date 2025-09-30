@@ -24,8 +24,11 @@ namespace PROYECTO_RESIDENCIAS
                 ReadOnly = true,
                 AllowUserToAddRows = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                AutoGenerateColumns = false
-            };
+                AutoGenerateColumns = false,
+                DataSource = new BindingList<AuxRepo.MesaDto>(AuxRepo.ListarMesas()),
+                RowHeadersVisible = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+            }; 
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Id", DataPropertyName = "Id", Width = 60 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Nombre", DataPropertyName = "Nombre", Width = 250 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Cap.", DataPropertyName = "Capacidad", Width = 80 });
@@ -49,7 +52,7 @@ namespace PROYECTO_RESIDENCIAS
         private AuxRepo.MesaDto? Seleccionada()
             => dgv.CurrentRow?.DataBoundItem as AuxRepo.MesaDto;
 
-        private void Cargar() => dgv.DataSource = new BindingList<AuxRepo.MesaDto>(AuxRepo.ListarMesas());
+        private void Cargar() => dgv.DataSource = AuxRepo.ListarMesas();
 
         private void Agregar()
         {

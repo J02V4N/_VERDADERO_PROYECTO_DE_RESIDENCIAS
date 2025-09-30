@@ -24,8 +24,11 @@ namespace PROYECTO_RESIDENCIAS
                 ReadOnly = true,
                 AllowUserToAddRows = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                AutoGenerateColumns = false
-            };
+                AutoGenerateColumns = false,
+                DataSource = new BindingList<AuxRepo.MeseroDto>(AuxRepo.ListarMeseros(soloActivos: false)),
+                RowHeadersVisible = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+            }; 
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Id", DataPropertyName = "Id", Width = 60 });
             dgv.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Nombre", DataPropertyName = "Nombre", Width = 260 });
             dgv.Columns.Add(new DataGridViewCheckBoxColumn { HeaderText = "Activo", DataPropertyName = "Activo", Width = 80 });
@@ -48,7 +51,7 @@ namespace PROYECTO_RESIDENCIAS
         private AuxRepo.MeseroDto? Seleccionado()
             => dgv.CurrentRow?.DataBoundItem as AuxRepo.MeseroDto;
 
-        private void Cargar() => dgv.DataSource = new BindingList<AuxRepo.MeseroDto>(AuxRepo.ListarMeseros(soloActivos:false));
+        private void Cargar() => AuxRepo.ListarMeseros(soloActivos: false);
 
         private void Agregar()
         {
