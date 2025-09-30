@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace PROYECTO_RESIDENCIAS
 {
-    
+    //nueva prueba, creo que grege el git ignore
 
     public static class SaeDb
     {
