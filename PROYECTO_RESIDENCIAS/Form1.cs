@@ -106,9 +106,10 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
         {
 
 
-            // 1) Carga de catálogos dummy
-            SeedMeseros();
-            SeedMesas(12);
+            // 1) Carga de catálogos 
+
+            CargarMeserosDesdeAux();
+            CargarMesasDesdeAux();
             SeedPlatillos();
 
             // 2) Bindings
@@ -141,18 +142,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
 
 
-            //var status = new StatusStrip();
-            //var sSae = new ToolStripStatusLabel("SAE: ?");
-            //var sAux = new ToolStripStatusLabel("Aux: ?");
-            //var sBas = new ToolStripStatusLabel("Báscula: OFF");
-            //status.Items.AddRange(new ToolStripItem[] { sSae, sAux, sBas });
-            //status.SizingGrip = false;
-            //this.Controls.Add(status);
-
-
-
-            // Guarda referencias en campos privados
-            //tslSae = sSae; tslAux = sAux; tslBascula = sBas;
+            
             UpdateStatus("SAE", true); // si ya probaste OK
             UpdateStatus("AUX", true);
             UpdateStatus("BAS", _timerBascula.Enabled);
@@ -207,32 +197,38 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
         }
         //TOOL STRIP ------------------------------------------------------------------------------------------------------------------------
 
-        // ======== SEED DATA ========
+        // ========  DATA QUE VIENE DE AUXILIAR ========
 
-        private void SeedMeseros()
+
+
+        private void CargarMeserosDesdeAux()
         {
-            _meseros = new List<Mesero>
-            {
-                new Mesero{ Id=1, Nombre="Ana" },
-                new Mesero{ Id=2, Nombre="Luis" },
-                new Mesero{ Id=3, Nombre="Sofía" }
-            };
+            var lista = AuxRepo.ListarMeseros(soloActivos: true);
+            _meseros = lista.ConvertAll(x => new Mesero { Id = x.Id, Nombre = x.Nombre /* puedes guardar Activo si agregas la prop */ });
+            cboMesero.DataSource = null;
+            cboMesero.DataSource = _meseros;
+            cboMesero.DisplayMember = "Nombre";
+            cboMesero.ValueMember = "Id";
         }
 
-        private void SeedMesas(int cantidad)
+        private void CargarMesasDesdeAux()
         {
             _mesas.Clear();
-            for (int i = 1; i <= cantidad; i++)
+            var lista = AuxRepo.ListarMesas();
+            foreach (var m in lista)
             {
                 _mesas.Add(new Mesa
                 {
-                    Id = i,
-                    Nombre = $"Mesa {i}",
-                    Capacidad = (i % 4) + 2,
-                    Estado = MesaEstado.LIBRE
+                    Id = m.Id,
+                    Nombre = m.Nombre,
+                    Capacidad = m.Capacidad ?? 0,
+                    Estado = Enum.TryParse<MesaEstado>(m.Estado ?? "LIBRE", out var est) ? est : MesaEstado.LIBRE,
+                    MeseroId = null
                 });
             }
+            dgvMesas.DataSource = _mesas; // sigue igual
         }
+
 
         private void SeedPlatillos()
         {
@@ -738,7 +734,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
                 txtRutaSae.Text = saePath;
 
 
-                
+
 
                 // Ping + prueba mínima INVE01 (si existe)
                 SaeDb.TestConnection(saeConn);
@@ -797,7 +793,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
                 var clie = SaeDb.GetTableName(sae, "CLIE");
                 var prov = SaeDb.GetTableName(sae, "PROV");
                 var kits = SaeDb.GetTableName(sae, "KITS");
-               
+
                 var invTable = SaeDb.GetTableName(sae, "INVE");
                 using var cmd = new FbCommand($@"
 SELECT FIRST 500
@@ -1139,6 +1135,24 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             }
         }
 
+        private void btnCfgMesas_Click(object sender, EventArgs e)
+        {
+            using (var f = new FormMesasConfig())
+            {
+                f.ShowDialog(this);
+                CargarMesasDesdeAux(); // refresca grilla al cerrar
+            }
+        }
+
+        private void btnCfgMeseros_Click(object sender, EventArgs e)
+        {
+            using (var f = new FormMeserosConfig())
+            {
+                f.ShowDialog(this);
+                CargarMeserosDesdeAux(); // refresca combo al cerrar
+            }
+        }
+
         //no se usa esto (y no borrar, si no, explota el programa)
 
         private void txtRutaAux_TextChanged(object sender, EventArgs e)
@@ -1151,10 +1165,19 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
 
         }
 
+        private void btnAbrirMesa_Click(object sender, EventArgs e)
+        {
+
+        }
 
         
 
-        
+
+
+
+
+
+
 
         //hasta aqui lo que no se usa
     }///fin public partial class Form1 : Form

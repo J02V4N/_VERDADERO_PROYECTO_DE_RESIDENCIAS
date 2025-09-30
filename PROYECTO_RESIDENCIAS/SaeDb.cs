@@ -5,10 +5,11 @@ using System.Text.RegularExpressions;
 
 namespace PROYECTO_RESIDENCIAS
 {
-    //nueva prueba, creo que agrege el git ignore y elimine el directorio vs
 
     public static class SaeDb
     {
+        public static void ResetSaeSuffixCache() => _cachedSaeSuffix = null;
+
 
         public static string ConnectionString { get; private set; }
 

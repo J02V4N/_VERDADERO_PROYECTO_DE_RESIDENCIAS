@@ -76,6 +76,8 @@
             lbInvArticulos = new ListBox();
             txtInvBuscar = new TextBox();
             tabConfig = new TabPage();
+            btnCfgMeseros = new Button();
+            btnCfgMesas = new Button();
             btnGuardarConfig = new Button();
             btnProbarBascula = new Button();
             cboListaPrecios = new ComboBox();
@@ -183,6 +185,7 @@
             btnAbrirMesa.TabIndex = 1;
             btnAbrirMesa.Text = "Atender Mesa";
             btnAbrirMesa.UseVisualStyleBackColor = true;
+            btnAbrirMesa.Click += btnAbrirMesa_Click;
             // 
             // lblMesaSel
             // 
@@ -590,6 +593,8 @@
             // 
             // tabConfig
             // 
+            tabConfig.Controls.Add(btnCfgMeseros);
+            tabConfig.Controls.Add(btnCfgMesas);
             tabConfig.Controls.Add(btnGuardarConfig);
             tabConfig.Controls.Add(btnProbarBascula);
             tabConfig.Controls.Add(cboListaPrecios);
@@ -607,9 +612,30 @@
             tabConfig.Text = "tabConfig";
             tabConfig.UseVisualStyleBackColor = true;
             // 
+            // btnCfgMeseros
+            // 
+            btnCfgMeseros.Location = new Point(682, 350);
+            btnCfgMeseros.Name = "btnCfgMeseros";
+            btnCfgMeseros.Size = new Size(102, 23);
+            btnCfgMeseros.TabIndex = 14;
+            btnCfgMeseros.Text = "btnCfgMeseros";
+            btnCfgMeseros.UseVisualStyleBackColor = true;
+            btnCfgMeseros.Click += btnCfgMeseros_Click;
+            // 
+            // btnCfgMesas
+            // 
+            btnCfgMesas.Location = new Point(582, 350);
+            btnCfgMesas.Name = "btnCfgMesas";
+            btnCfgMesas.Size = new Size(94, 23);
+            btnCfgMesas.TabIndex = 13;
+            btnCfgMesas.Text = "btnCfgMesas";
+            btnCfgMesas.UseVisualStyleBackColor = true;
+            btnCfgMesas.Click += btnCfgMesas_Click;
+            // 
             // btnGuardarConfig
             // 
-            btnGuardarConfig.Location = new Point(626, 335);
+            btnGuardarConfig.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
+            btnGuardarConfig.Location = new Point(697, 391);
             btnGuardarConfig.Name = "btnGuardarConfig";
             btnGuardarConfig.Size = new Size(75, 23);
             btnGuardarConfig.TabIndex = 12;
@@ -619,7 +645,7 @@
             // 
             // btnProbarBascula
             // 
-            btnProbarBascula.Location = new Point(595, 262);
+            btnProbarBascula.Location = new Point(383, 262);
             btnProbarBascula.Name = "btnProbarBascula";
             btnProbarBascula.Size = new Size(106, 23);
             btnProbarBascula.TabIndex = 11;
@@ -789,5 +815,7 @@
         private ToolStripStatusLabel tslSae;
         private ToolStripStatusLabel tslAux;
         private ToolStripStatusLabel tslBascula;
+        private Button btnCfgMesas;
+        private Button btnCfgMeseros;
     }
 }
