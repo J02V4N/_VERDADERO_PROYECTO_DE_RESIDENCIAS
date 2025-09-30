@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace PROYECTO_RESIDENCIAS
 {
-    public static class prueba { }//prueba para checar si ya sirve
+    //lo elimine para ver si ya no hay problemas
 
     public static class SaeDb
     {
