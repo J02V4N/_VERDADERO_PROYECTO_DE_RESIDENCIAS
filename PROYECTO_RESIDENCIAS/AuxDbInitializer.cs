@@ -54,7 +54,7 @@ namespace PROYECTO_RESIDENCIAS
             int port = 3050,
             string user = "SYSDBA",
             string password = "masterkey",
-            string charset = "UTF8")
+            string charset = "ISO8859_1")
         {
             dbPath = GetDefaultAuxDbPath();
 
