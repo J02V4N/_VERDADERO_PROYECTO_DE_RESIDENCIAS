@@ -26,7 +26,9 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             public int Capacidad { get; set; }
             public MesaEstado Estado { get; set; }
             public int? MeseroId { get; set; }
-       
+
+           
+            public string MeseroNombre { get; set; }     // ← NUEVA (para mostrar en la grilla)
 
         }
 
@@ -102,12 +104,32 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
         public Form1()
         {
+
             InitializeComponent();
+            ResetContextoMesaPedido();
             this.Load += Form1_Load; // <-- SUSCRIBIR
             // Config inicial del timer de “báscula”
             _timerBascula.Interval = 800; // ms
             _timerBascula.Tick += (s, e) => SimularLecturaBascula();
 
+            // IDs del contexto actual (turno/mesa/pedido) cuando una mesa está abierta
+
+
+        // (opcional) helper para limpiar el contexto
+        
+
+        }
+
+
+        private int? _idTurnoActual;
+        private int? _idMesaTurnoActual;
+        private int? _idPedidoActual;
+
+        private void ResetContextoMesaPedido()
+        {
+            _idTurnoActual = null;
+            _idMesaTurnoActual = null;
+            _idPedidoActual = null;
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -130,8 +152,10 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
             // 3) Eventos de UI
             dgvMesas.SelectionChanged += (s, ev) => SeleccionarMesa();
-            
-            
+
+            dgvMesas.SelectionChanged += dgvMesas_SelectionChanged;
+
+
 
             lbPlatillos.DoubleClick += (s, ev) => AgregarPlatilloSeleccionado();
             btnAgregarLinea.Click += (s, ev) => AgregarPlatilloSeleccionado();
@@ -233,11 +257,21 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
                     Nombre = m.Nombre,
                     Capacidad = m.Capacidad ?? 0,
                     Estado = Enum.TryParse<MesaEstado>(m.Estado ?? "LIBRE", out var est) ? est : MesaEstado.LIBRE,
-                    MeseroId = null
+                    MeseroId = m.MeseroIdActual,                 // ← viene de MESA_TURNO (si hay turno abierto)
+                    MeseroNombre = m.MeseroNombre                // ← para mostrar en la columna "Mesero"
                 });
             }
-            dgvMesas.DataSource = _mesas; // sigue igual
+            dgvMesas.DataSource = null;
+            dgvMesas.DataSource = _mesas;
+            var colMesero = dgvMesas.Columns.Cast<DataGridViewColumn>()
+                  .FirstOrDefault(c => c.HeaderText.Equals("Mesero", StringComparison.OrdinalIgnoreCase));
+            if (colMesero != null) colMesero.DataPropertyName = "MeseroNombre";
+
+
+            // Ajusta habilitación de controles según la mesa seleccionada
+            ActualizarHabilitacionMeseroSegunMesa();
         }
+
 
 
         private void SeedPlatillos()
@@ -251,6 +285,21 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
                 new Platillo{ Clave="CAM-PS", Nombre="Camarón al peso", PrecioUnit=520m, RequierePeso=true } // $/kg
             };
         }
+
+
+        private void ActualizarHabilitacionMeseroSegunMesa()
+        {
+            var mesa = MesaSeleccionada();
+            bool libre = mesa != null && mesa.Estado == MesaEstado.LIBRE;
+            btnAsignarMesero.Enabled = libre;
+            cboMesero.Enabled = libre;
+        }
+
+        private void dgvMesas_SelectionChanged(object sender, EventArgs e)
+        {
+            ActualizarHabilitacionMeseroSegunMesa();
+        }
+
 
         // ======== UI / BINDINGS ========
 
@@ -489,29 +538,56 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
         private void AbrirAtenderMesa()
         {
-            if (_mesaSeleccionada == null) return;
-            if (cboMesero.SelectedItem is Mesero mesero)
+            var mesa = MesaSeleccionada();
+            if (mesa == null)
             {
-                _mesaSeleccionada.MeseroId = mesero.Id;
+                MessageBox.Show("Selecciona una mesa.", "Abrir mesa", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
 
-            if (!_pedidosAbiertos.ContainsKey(_mesaSeleccionada.Id))
+            // mesero: usa el preasignado si existe, si no, toma el combo
+            int? meseroId = mesa.MeseroId;
+            if (meseroId == null)
             {
-                var ped = new Pedido
+                if (cboMesero.SelectedItem is not Mesero mesero)
                 {
-                    Id = Environment.TickCount,
-                    MesaId = _mesaSeleccionada.Id,
-                    MeseroId = _mesaSeleccionada.MeseroId ?? 0
-                };
-                _pedidosAbiertos[_mesaSeleccionada.Id] = ped;
-                _mesaSeleccionada.Estado = MesaEstado.OCUPADA;
+                    MessageBox.Show("Selecciona un mesero.", "Abrir mesa", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                meseroId = mesero.Id;
             }
 
-            _pedidoActual = _pedidosAbiertos[_mesaSeleccionada.Id];
-            dgvPedido.DataSource = _pedidoActual.Detalles;
+            try
+            {
+                var r = AuxRepo.AbrirMesa(mesa.Id, meseroId.Value);
 
-            tabMain.SelectedTab = tabPedido;
-            ActualizarUI();
+                // Actualiza estado en memoria y refresca UI
+                mesa.Estado = MesaEstado.OCUPADA;
+                if (!mesa.MeseroId.HasValue)
+                    mesa.MeseroId = meseroId.Value;
+
+                var meseroNombre = (cboMesero.SelectedItem as Mesero)?.Nombre
+                                   ?? _meseros.Find(x => x.Id == mesa.MeseroId)?.Nombre;
+
+                mesa.MeseroNombre = meseroNombre;
+                dgvMesas.Refresh();
+                ActualizarHabilitacionMeseroSegunMesa();
+
+                // (Opcional) guarda los IDs para usar en tabPedido
+                _idTurnoActual = r.IdTurno;
+                _idMesaTurnoActual = r.IdMesaTurno;
+                _idPedidoActual = r.IdPedido;
+
+                // (Opcional) ir a tabPedido
+                // tabMain.SelectedTab = tabPedido;
+
+                MessageBox.Show($"Mesa '{mesa.Nombre}' abierta.\nTurno: {r.IdTurno}\nMesaTurno: {r.IdMesaTurno}\nPedido: {r.IdPedido}",
+                    "OK", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "No se pudo abrir la mesa", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
         private void AgregarPlatilloSeleccionado()
@@ -676,7 +752,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             {
                 // Crea/abre la BD auxiliar en la raíz del proyecto (o junto al .exe publicado)
                 string auxPath;
-                using var auxConn = AuxDbInitializer.EnsureCreated(out auxPath, charset: "UTF8");
+                using var auxConn = AuxDbInitializer.EnsureCreated(out auxPath, charset: "ISO8859_1");
 
                 // Prueba de vida
                 using (var cmd = new FbCommand("SELECT 1 FROM RDB$DATABASE", auxConn))
@@ -912,7 +988,7 @@ ORDER BY CVE_ART", sae);
             try
             {
                 string auxPath;
-                using var aux = AuxDbInitializer.EnsureCreated(out auxPath, charset: "UTF8");
+                using var aux = AuxDbInitializer.EnsureCreated(out auxPath, charset: "ISO8859_1");
                 AuxDbInitializer.EnsureMovInvAux(aux);
 
                 using var tx = aux.BeginTransaction();
@@ -1047,7 +1123,7 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         private void CargarConfigUI()
         {
             string auxPath;
-            using var aux = AuxDbInitializer.EnsureCreated(out auxPath, charset: "UTF8");
+            using var aux = AuxDbInitializer.EnsureCreated(out auxPath, charset: "ISO8859_1");
             string Get(string k)
             {
                 using var c = new FbCommand("SELECT VALOR FROM CONFIG WHERE CLAVE=@K", aux);
@@ -1066,7 +1142,7 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         private void GuardarConfigUI()
         {
             string auxPath;
-            using var aux = AuxDbInitializer.EnsureCreated(out auxPath, charset: "UTF8");
+            using var aux = AuxDbInitializer.EnsureCreated(out auxPath, charset: "ISO8859_1");
             AuxDbInitializer.UpsertConfig(aux, "BASCULA_PUERTO", txtPuertoCom.Text);
             AuxDbInitializer.UpsertConfig(aux, "IMPRESORA_TICKET", cboImpresora.Text);
             AuxDbInitializer.UpsertConfig(aux, "ALMACEN_DEFAULT", cboAlmacen.Text);
@@ -1086,7 +1162,7 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         {
 
             string auxPath;
-            using var aux = AuxDbInitializer.EnsureCreated(out auxPath, charset: "UTF8");
+            using var aux = AuxDbInitializer.EnsureCreated(out auxPath, charset: "ISO8859_1");
             AuxDbInitializer.UpsertConfig(aux, "IMPRESORA_TICKET", cboImpresora.Text);
             AuxDbInitializer.UpsertConfig(aux, "BASCULA_PUERTO", txtPuertoCom.Text);
             AuxDbInitializer.UpsertConfig(aux, "ALMACEN_DEFAULT", cboAlmacen.Text);
@@ -1134,7 +1210,7 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         private string GetSaePathFromAuxConfig()
         {
             string auxPath;
-            using (var auxConn = AuxDbInitializer.EnsureCreated(out auxPath, charset: "UTF8"))
+            using (var auxConn = AuxDbInitializer.EnsureCreated(out auxPath, charset: "ISO8859_1"))
             using (var cmd = new FbCommand("SELECT VALOR FROM CONFIG WHERE CLAVE='SAE_FDB'", auxConn))
             {
                 var o = cmd.ExecuteScalar();
@@ -1172,28 +1248,25 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         private void btnAsignarMesero_Click(object sender, EventArgs e)
         {
             var mesa = MesaSeleccionada();
-            if (mesa == null)
+            if (mesa == null) { MessageBox.Show("Selecciona una mesa."); return; }
+
+            if (mesa.Estado != MesaEstado.LIBRE)
             {
-                MessageBox.Show("Selecciona una mesa en la lista.", "Asignar mesero", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("La mesa no está LIBRE. No puedes cambiar el mesero hasta reabrirla.",
+                                "Asignar mesero", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
             if (cboMesero.SelectedItem is not Mesero mesero)
             {
-                MessageBox.Show("Selecciona un mesero en el combo.", "Asignar mesero", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
+                MessageBox.Show("Selecciona un mesero."); return;
             }
 
-            // Pre-asignación en memoria (no crea turno ni pedido)
             mesa.MeseroId = mesero.Id;
-            // Si tu clase Mesa tiene Nombre de mesero, actualízalo:
-            // mesa.MeseroNombre = mesero.Nombre;
-
-            // Refresca la grilla para que se vea el cambio si tienes columna de mesero
+            mesa.MeseroNombre = mesero.Nombre;
             dgvMesas.Refresh();
-
-            MessageBox.Show($"Mesero '{mesero.Nombre}' asignado a la mesa '{mesa.Nombre}'.", "OK", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
+
 
         //no se usa esto (y no borrar, si no, explota el programa)
 

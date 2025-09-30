@@ -12,6 +12,9 @@ namespace PROYECTO_RESIDENCIAS
             public string Nombre { get; set; }
             public int? Capacidad { get; set; }
             public string Estado { get; set; }
+            // nuevos:
+            public int? MeseroIdActual { get; set; }
+            public string MeseroNombre { get; set; }
         }
 
         public class MeseroDto
@@ -21,7 +24,7 @@ namespace PROYECTO_RESIDENCIAS
             public bool Activo { get; set; }
         }
 
-        
+
 
         // ===== MESAS =====
         public static List<MesaDto> ListarMesas()
@@ -29,26 +32,51 @@ namespace PROYECTO_RESIDENCIAS
             var list = new List<MesaDto>();
             string path;
             using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
-            using var cmd = new FbCommand(@"SELECT ID_MESA, NOMBRE, CAPACIDAD, ESTADO FROM MESAS ORDER BY ID_MESA", conn);
+
+            int? idTurno = GetTurnoAbiertoId();
+
+            string sql = idTurno.HasValue
+                ? @"SELECT me.ID_MESA, me.NOMBRE, me.CAPACIDAD, me.ESTADO,
+                    mt.ID_MESERO, ms.NOMBRE
+           FROM MESAS me
+           LEFT JOIN MESA_TURNO mt ON mt.ID_MESA = me.ID_MESA
+                                  AND mt.ID_TURNO = @T
+                                  AND (mt.ESTADO IN ('OCUPADA','EN_CUENTA'))
+           LEFT JOIN MESEROS ms ON ms.ID_MESERO = mt.ID_MESERO
+           ORDER BY me.ID_MESA"
+                : @"SELECT me.ID_MESA, me.NOMBRE, me.CAPACIDAD, me.ESTADO,
+                    CAST(NULL AS INTEGER) AS ID_MESERO,
+                    CAST(NULL AS VARCHAR(60)) AS NOMBRE
+           FROM MESAS me
+           ORDER BY me.ID_MESA";
+
+            using var cmd = new FirebirdSql.Data.FirebirdClient.FbCommand(sql, conn);
+            if (idTurno.HasValue)
+                cmd.Parameters.Add("@T", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idTurno.Value;
+
             using var rd = cmd.ExecuteReader();
             while (rd.Read())
             {
                 list.Add(new MesaDto
                 {
-                    Id = Convert.ToInt32(rd["ID_MESA"]),
-                    Nombre = rd["NOMBRE"].ToString(),
-                    Capacidad = rd["CAPACIDAD"] == DBNull.Value ? (int?)null : Convert.ToInt32(rd["CAPACIDAD"]),
-                    Estado = rd["ESTADO"]?.ToString() ?? "LIBRE"
+                    Id = Convert.ToInt32(rd[0]),
+                    Nombre = rd[1]?.ToString(),
+                    Capacidad = rd[2] == DBNull.Value ? (int?)null : Convert.ToInt32(rd[2]),
+                    Estado = rd[3]?.ToString(),
+                    MeseroIdActual = rd[4] == DBNull.Value ? (int?)null : Convert.ToInt32(rd[4]),
+                    MeseroNombre = rd[5] == DBNull.Value ? null : rd[5].ToString()
                 });
             }
+
             return list;
         }
+
 
         public static int InsertMesa(string nombre, int? capacidad)
         {
             if (string.IsNullOrWhiteSpace(nombre)) throw new ArgumentException("Nombre requerido");
             string path;
-            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
             using var tx = conn.BeginTransaction();
             using var cmd = new FbCommand(@"INSERT INTO MESAS (NOMBRE, CAPACIDAD, ESTADO) VALUES (@N,@C,'LIBRE') RETURNING ID_MESA", conn, tx);
             cmd.Parameters.Add(new FbParameter("@N", FbDbType.VarChar, 30) { Value = nombre.Trim() });
@@ -61,7 +89,7 @@ namespace PROYECTO_RESIDENCIAS
         public static void UpdateMesa(int id, string nombre, int? capacidad)
         {
             string path;
-            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
             using var cmd = new FbCommand(@"UPDATE MESAS SET NOMBRE=@N, CAPACIDAD=@C WHERE ID_MESA=@ID", conn);
             cmd.Parameters.Add(new FbParameter("@N", FbDbType.VarChar, 30) { Value = nombre?.Trim() ?? "" });
             cmd.Parameters.Add(new FbParameter("@C", FbDbType.Integer) { Value = (object?)capacidad ?? DBNull.Value });
@@ -72,7 +100,7 @@ namespace PROYECTO_RESIDENCIAS
         public static void DeleteMesa(int id)
         {
             string path;
-            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
             using var cmd = new FbCommand(@"DELETE FROM MESAS WHERE ID_MESA=@ID", conn);
             cmd.Parameters.Add(new FbParameter("@ID", FbDbType.Integer) { Value = id });
             cmd.ExecuteNonQuery();
@@ -83,7 +111,7 @@ namespace PROYECTO_RESIDENCIAS
         {
             var list = new List<MeseroDto>();
             string path;
-            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
             string sql = "SELECT ID_MESERO, NOMBRE, ACTIVO FROM MESEROS " + (soloActivos ? "WHERE ACTIVO=1 " : "") + "ORDER BY NOMBRE";
             using var cmd = new FbCommand(sql, conn);
             using var rd = cmd.ExecuteReader();
@@ -103,7 +131,7 @@ namespace PROYECTO_RESIDENCIAS
         {
             if (string.IsNullOrWhiteSpace(nombre)) throw new ArgumentException("Nombre requerido");
             string path;
-            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
             using var tx = conn.BeginTransaction();
             using var cmd = new FbCommand(@"INSERT INTO MESEROS (NOMBRE, ACTIVO) VALUES (@N, @A) RETURNING ID_MESERO", conn, tx);
             cmd.Parameters.Add(new FbParameter("@N", FbDbType.VarChar, 60) { Value = nombre.Trim() });
@@ -116,7 +144,7 @@ namespace PROYECTO_RESIDENCIAS
         public static void UpdateMesero(int id, string nombre, bool activo)
         {
             string path;
-            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
             using var cmd = new FbCommand(@"UPDATE MESEROS SET NOMBRE=@N, ACTIVO=@A WHERE ID_MESERO=@ID", conn);
             cmd.Parameters.Add(new FbParameter("@N", FbDbType.VarChar, 60) { Value = nombre?.Trim() ?? "" });
             cmd.Parameters.Add(new FbParameter("@A", FbDbType.SmallInt) { Value = activo ? 1 : 0 });
@@ -127,10 +155,178 @@ namespace PROYECTO_RESIDENCIAS
         public static void DeleteMesero(int id)
         {
             string path;
-            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
             using var cmd = new FbCommand(@"DELETE FROM MESEROS WHERE ID_MESERO=@ID", conn);
             cmd.Parameters.Add(new FbParameter("@ID", FbDbType.Integer) { Value = id });
             cmd.ExecuteNonQuery();
         }
+
+        public static int GetOrOpenTurnoDelDia()
+        {
+            string path;
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var tx = conn.BeginTransaction();
+
+            // Turno abierto de HOY = FECHA=CURRENT_DATE y HORA_FIN IS NULL
+            int? id = null;
+            using (var cmd = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                "SELECT ID_TURNO FROM TURNOS WHERE FECHA = CURRENT_DATE AND HORA_FIN IS NULL ROWS 1",
+                conn, tx))
+            {
+                var o = cmd.ExecuteScalar();
+                if (o != null && o != DBNull.Value) id = System.Convert.ToInt32(o);
+            }
+
+            if (id.HasValue)
+            {
+                tx.Commit();
+                return id.Value;
+            }
+
+            // Crear turno del día (HORA_INI requerida; FECHA la rellena el trigger si no la pasas)
+            using (var cmdIns = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                "INSERT INTO TURNOS (FECHA, HORA_INI, RESPONSABLE) " +
+                "VALUES (CURRENT_DATE, CURRENT_TIME, 'SISTEMA') RETURNING ID_TURNO",
+                conn, tx))
+            {
+                int nuevo = System.Convert.ToInt32(cmdIns.ExecuteScalar());
+                tx.Commit();
+                return nuevo;
+            }
+        }
+
+
+
+        public sealed class AbrirMesaResult
+        {
+            public int IdTurno { get; set; }
+            public int IdMesaTurno { get; set; }
+            public int IdPedido { get; set; }
+        }
+
+        // Lanza exception si la mesa no está libre o algo falla.
+        public static AbrirMesaResult AbrirMesa(int idMesa, int idMesero)
+        {
+            string path;
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var tx = conn.BeginTransaction();
+
+            // 1) Turno del día (abierto)
+            int idTurno;
+            using (var cmdT = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                "SELECT ID_TURNO FROM TURNOS WHERE FECHA = CURRENT_DATE AND HORA_FIN IS NULL ROWS 1",
+                conn, tx))
+            {
+                var o = cmdT.ExecuteScalar();
+                if (o == null || o == DBNull.Value)
+                {
+                    using var cmdIns = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                        "INSERT INTO TURNOS (FECHA, HORA_INI, RESPONSABLE) " +
+                        "VALUES (CURRENT_DATE, CURRENT_TIME, 'SISTEMA') RETURNING ID_TURNO",
+                        conn, tx);
+                    idTurno = System.Convert.ToInt32(cmdIns.ExecuteScalar());
+                }
+                else idTurno = System.Convert.ToInt32(o);
+            }
+
+            // 2) Validar mesa LIBRE
+            using (var cmdMesa = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                "SELECT ESTADO FROM MESAS WHERE ID_MESA=@M", conn, tx))
+            {
+                cmdMesa.Parameters.Add("@M", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idMesa;
+                var estado = cmdMesa.ExecuteScalar()?.ToString();
+                if (!string.Equals(estado, "LIBRE", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("La mesa no está LIBRE.");
+            }
+
+            // 3) Checar que no exista mesa-turno abierta (OCUPADA/EN_CUENTA) para este turno
+            using (var cmdChk = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                "SELECT ID_MESA_TURNO FROM MESA_TURNO " +
+                "WHERE ID_TURNO=@T AND ID_MESA=@M AND (ESTADO IN ('OCUPADA','EN_CUENTA')) ROWS 1",
+                conn, tx))
+            {
+                cmdChk.Parameters.Add("@T", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idTurno;
+                cmdChk.Parameters.Add("@M", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idMesa;
+                var exists = cmdChk.ExecuteScalar();
+                if (exists != null && exists != DBNull.Value)
+                    throw new InvalidOperationException("La mesa ya tiene un registro abierto en este turno.");
+            }
+
+            // 4) Crear MESA_TURNO (no hay campos de hora en tu esquema)
+            int idMesaTurno;
+            using (var cmdMT = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                "INSERT INTO MESA_TURNO (ID_TURNO, ID_MESA, ID_MESERO, ESTADO) " +
+                "VALUES (@T, @M, @ME, 'OCUPADA') RETURNING ID_MESA_TURNO",
+                conn, tx))
+            {
+                cmdMT.Parameters.Add("@T", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idTurno;
+                cmdMT.Parameters.Add("@M", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idMesa;
+                cmdMT.Parameters.Add("@ME", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idMesero;
+                idMesaTurno = System.Convert.ToInt32(cmdMT.ExecuteScalar());
+            }
+
+            // 5) Crear PEDIDO (trigger pone FECHA_HORA y ESTADO='ABIERTO')
+            int idPedido;
+            using (var cmdP = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                "INSERT INTO PEDIDOS (ID_MESA_TURNO, SUBTOTAL, IMPUESTO, TOTAL) " +
+                "VALUES (@MT, 0, 0, 0) RETURNING ID_PEDIDO",
+                conn, tx))
+            {
+                cmdP.Parameters.Add("@MT", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idMesaTurno;
+                idPedido = System.Convert.ToInt32(cmdP.ExecuteScalar());
+            }
+
+            // 6) Poner mesa en OCUPADA
+            using (var cmdUpd = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                "UPDATE MESAS SET ESTADO='OCUPADA' WHERE ID_MESA=@M", conn, tx))
+            {
+                cmdUpd.Parameters.Add("@M", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idMesa;
+                cmdUpd.ExecuteNonQuery();
+            }
+
+            tx.Commit();
+
+            return new AbrirMesaResult
+            {
+                IdTurno = idTurno,
+                IdMesaTurno = idMesaTurno,
+                IdPedido = idPedido
+            };
+        }
+
+
+        // AuxRepo.cs (dentro de la clase AuxRepo)
+        private static bool ColumnExists(FirebirdSql.Data.FirebirdClient.FbConnection con,
+                                         string table,
+                                         string column,
+                                         FirebirdSql.Data.FirebirdClient.FbTransaction tx = null)
+        {
+            var sql = @"
+        SELECT COUNT(*)
+        FROM RDB$RELATION_FIELDS
+        WHERE RDB$RELATION_NAME = @t
+          AND RDB$FIELD_NAME    = @c";
+
+            using var cmd = tx != null
+                ? new FirebirdSql.Data.FirebirdClient.FbCommand(sql, con, tx)
+                : new FirebirdSql.Data.FirebirdClient.FbCommand(sql, con);
+
+            cmd.Parameters.Add("@t", FirebirdSql.Data.FirebirdClient.FbDbType.Char).Value = table.ToUpperInvariant();
+            cmd.Parameters.Add("@c", FirebirdSql.Data.FirebirdClient.FbDbType.Char).Value = column.ToUpperInvariant();
+
+            return System.Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+        }
+
+        public static int? GetTurnoAbiertoId()
+        {
+            string path;
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var cmd = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                "SELECT ID_TURNO FROM TURNOS WHERE FECHA = CURRENT_DATE AND HORA_FIN IS NULL ROWS 1", conn);
+            var o = cmd.ExecuteScalar();
+            return (o != null && o != DBNull.Value) ? Convert.ToInt32(o) : (int?)null;
+        }
+
+
     }
 }

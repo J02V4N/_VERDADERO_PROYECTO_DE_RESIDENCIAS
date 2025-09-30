@@ -235,7 +235,7 @@ namespace PROYECTO_RESIDENCIAS
                 try
                 {
                     string auxPath;
-                    using (var auxConn = AuxDbInitializer.EnsureCreated(out auxPath, charset: "UTF8"))
+                    using (var auxConn = AuxDbInitializer.EnsureCreated(out auxPath, charset: "ISO8859_1"))
                     {
                         AuxDbInitializer.UpsertConfig(auxConn, "SAE_FDB", SelectedFdbPath);
                     }
