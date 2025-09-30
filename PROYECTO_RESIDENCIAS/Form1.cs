@@ -130,7 +130,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
             // 3) Eventos de UI
             dgvMesas.SelectionChanged += (s, ev) => SeleccionarMesa();
-            btnAbrirMesa.Click += (s, ev) => AbrirAtenderMesa();
+            
             
 
             lbPlatillos.DoubleClick += (s, ev) => AgregarPlatilloSeleccionado();
@@ -1163,22 +1163,11 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             }
         }
 
-        //no se usa esto (y no borrar, si no, explota el programa)
-
-        private void txtRutaAux_TextChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        private void dgvInvCaptura_CellContentClick(object sender, EventArgs e)
-        {
-
-        }
-
         private void btnAbrirMesa_Click(object sender, EventArgs e)
         {
-
+            AbrirAtenderMesa();
         }
+
 
         private void btnAsignarMesero_Click(object sender, EventArgs e)
         {
@@ -1206,14 +1195,17 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             MessageBox.Show($"Mesero '{mesero.Nombre}' asignado a la mesa '{mesa.Nombre}'.", "OK", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
+        //no se usa esto (y no borrar, si no, explota el programa)
 
+        private void txtRutaAux_TextChanged(object sender, EventArgs e)
+        {
 
+        }
 
+        private void dgvInvCaptura_CellContentClick(object sender, EventArgs e)
+        {
 
-
-
-
-
+        }
 
         //hasta aqui lo que no se usa
     }///fin public partial class Form1 : Form

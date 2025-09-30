@@ -2,6 +2,8 @@
 using System;
 using System.Data.Common;
 using System.Text.RegularExpressions;
+using System.Collections.Generic;
+
 
 namespace PROYECTO_RESIDENCIAS
 {
@@ -61,7 +63,7 @@ namespace PROYECTO_RESIDENCIAS
                 Dialect = 3,
                 Pooling = true,
                 // Si usas cliente embebido x86 local, descomenta:
-                // ClientLibrary = "fbclient.dll"
+                ClientLibrary = "fbclient.dll"
             };
 
             return new FbConnection(cs.ToString());
