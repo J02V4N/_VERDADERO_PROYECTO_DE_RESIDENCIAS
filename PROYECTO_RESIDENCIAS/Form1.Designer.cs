@@ -175,6 +175,7 @@
             btnAsignarMesero.TabIndex = 5;
             btnAsignarMesero.Text = "Asignar";
             btnAsignarMesero.UseVisualStyleBackColor = true;
+            btnAsignarMesero.Click += btnAsignarMesero_Click;
             // 
             // btnAbrirMesa
             // 

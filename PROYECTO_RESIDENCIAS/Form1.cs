@@ -26,7 +26,15 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             public int Capacidad { get; set; }
             public MesaEstado Estado { get; set; }
             public int? MeseroId { get; set; }
+       
+
         }
+
+        private Mesa? MesaSeleccionada()
+        {
+            return dgvMesas.CurrentRow?.DataBoundItem as Mesa;
+        }
+
 
         public class Mesero
         {
@@ -123,6 +131,8 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             // 3) Eventos de UI
             dgvMesas.SelectionChanged += (s, ev) => SeleccionarMesa();
             btnAbrirMesa.Click += (s, ev) => AbrirAtenderMesa();
+            
+
             lbPlatillos.DoubleClick += (s, ev) => AgregarPlatilloSeleccionado();
             btnAgregarLinea.Click += (s, ev) => AgregarPlatilloSeleccionado();
             chkSimularBascula.CheckedChanged += (s, e) => UpdateScaleTimer();
@@ -142,7 +152,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
 
 
-            
+
             UpdateStatus("SAE", true); // si ya probaste OK
             UpdateStatus("AUX", true);
             UpdateStatus("BAS", _timerBascula.Enabled);
@@ -1170,7 +1180,33 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
 
         }
 
-        
+        private void btnAsignarMesero_Click(object sender, EventArgs e)
+        {
+            var mesa = MesaSeleccionada();
+            if (mesa == null)
+            {
+                MessageBox.Show("Selecciona una mesa en la lista.", "Asignar mesero", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (cboMesero.SelectedItem is not Mesero mesero)
+            {
+                MessageBox.Show("Selecciona un mesero en el combo.", "Asignar mesero", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            // Pre-asignación en memoria (no crea turno ni pedido)
+            mesa.MeseroId = mesero.Id;
+            // Si tu clase Mesa tiene Nombre de mesero, actualízalo:
+            // mesa.MeseroNombre = mesero.Nombre;
+
+            // Refresca la grilla para que se vea el cambio si tienes columna de mesero
+            dgvMesas.Refresh();
+
+            MessageBox.Show($"Mesero '{mesero.Nombre}' asignado a la mesa '{mesa.Nombre}'.", "OK", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+
 
 
 
