@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 
 namespace PROYECTO_RESIDENCIAS
 {
-    //nueva prueba, creo que grege el git ignore
+    //nueva prueba, creo que agrege el git ignore y elimine el directorio vs
 
     public static class SaeDb
     {
