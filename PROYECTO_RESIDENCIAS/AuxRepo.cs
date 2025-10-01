@@ -407,23 +407,116 @@ namespace PROYECTO_RESIDENCIAS
         public static void CerrarTurno(int idTurno)
         {
             string path;
-            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
             using var tx = conn.BeginTransaction();
 
-            using (var chk = new FbCommand(
-                "SELECT COUNT(*) FROM MESA_TURNO WHERE ID_TURNO=@T AND ESTADO IN ('OCUPADA','EN_CUENTA')", conn, tx))
+            // 1) ¿Mesas con MESA_TURNO abierto en este turno?
+            using (var chk = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                "SELECT COUNT(*) FROM MESA_TURNO WHERE ID_TURNO=@T AND ESTADO IN ('OCUPADA','EN_CUENTA')",
+                conn, tx))
             {
-                chk.Parameters.Add("@T", FbDbType.Integer).Value = idTurno;
-                int abiertas = Convert.ToInt32(chk.ExecuteScalar());
+                chk.Parameters.Add("@T", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idTurno;
+                int abiertas = System.Convert.ToInt32(chk.ExecuteScalar());
                 if (abiertas > 0)
-                    throw new InvalidOperationException("No puedes cerrar el turno: hay mesas OCUPADAS/EN_CUENTA.");
+                    throw new InvalidOperationException("No puedes cerrar el turno: hay mesas OCUPADAS/EN_CUENTA en MESA_TURNO.");
             }
 
-            using (var up = new FbCommand(
+            // 2) ¿Mesas marcadas como OCUPADA/EN_CUENTA en MESAS?
+            using (var chk2 = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                "SELECT COUNT(*) FROM MESAS WHERE ESTADO IN ('OCUPADA','EN_CUENTA')", conn, tx))
+            {
+                int cnt = System.Convert.ToInt32(chk2.ExecuteScalar());
+                if (cnt > 0)
+                    throw new InvalidOperationException("No puedes cerrar el turno: hay mesas con estado OCUPADA/EN_CUENTA.");
+            }
+
+            // 3) Cerrar turno (HORA_FIN = ahora)
+            using (var up = new FirebirdSql.Data.FirebirdClient.FbCommand(
                 "UPDATE TURNOS SET HORA_FIN = CURRENT_TIME WHERE ID_TURNO=@T", conn, tx))
             {
-                up.Parameters.Add("@T", FbDbType.Integer).Value = idTurno;
+                up.Parameters.Add("@T", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idTurno;
                 up.ExecuteNonQuery();
+            }
+
+            tx.Commit();
+        }
+
+
+
+        public static bool ExistenMesasOcupadasOEnCuenta()
+        {
+            string path;
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var cmd = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                "SELECT COUNT(*) FROM MESAS WHERE ESTADO IN ('OCUPADA','EN_CUENTA')", conn);
+            return System.Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+        }
+
+
+        public static void LiberarMesa(int idMesa)
+        {
+            string path;
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var tx = conn.BeginTransaction();
+
+            // Si hay turno abierto, intenta cerrar el MESA_TURNO activo de esta mesa
+            int? idTurno = null;
+            using (var cmdT = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                "SELECT ID_TURNO FROM TURNOS WHERE FECHA=CURRENT_DATE AND HORA_FIN IS NULL ROWS 1", conn, tx))
+            {
+                var o = cmdT.ExecuteScalar();
+                if (o != null && o != DBNull.Value) idTurno = System.Convert.ToInt32(o);
+            }
+
+            int? idMesaTurno = null;
+            if (idTurno.HasValue)
+            {
+                using var cmdMT = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                    "SELECT ID_MESA_TURNO FROM MESA_TURNO " +
+                    "WHERE ID_TURNO=@T AND ID_MESA=@M AND ESTADO IN ('OCUPADA','EN_CUENTA') ROWS 1", conn, tx);
+                cmdMT.Parameters.Add("@T", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idTurno.Value;
+                cmdMT.Parameters.Add("@M", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idMesa;
+                var o = cmdMT.ExecuteScalar();
+                if (o != null && o != DBNull.Value) idMesaTurno = System.Convert.ToInt32(o);
+            }
+            else
+            {
+                // No hay turno abierto: toma el último MESA_TURNO "abierto" que haya quedado colgado
+                using var cmdMTlast = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                    "SELECT ID_MESA_TURNO FROM MESA_TURNO " +
+                    "WHERE ID_MESA=@M AND ESTADO IN ('OCUPADA','EN_CUENTA') " +
+                    "ORDER BY ID_MESA_TURNO DESC ROWS 1", conn, tx);
+                cmdMTlast.Parameters.Add("@M", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idMesa;
+                var o = cmdMTlast.ExecuteScalar();
+                if (o != null && o != DBNull.Value) idMesaTurno = System.Convert.ToInt32(o);
+            }
+
+            if (idMesaTurno.HasValue)
+            {
+                // Cancela cualquier PEDIDO ABIERTO ligado a ese MESA_TURNO (tu trigger los abre en 'ABIERTO') 
+                using (var cmdP = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                    "UPDATE PEDIDOS SET ESTADO='CANCELADO' WHERE ID_MESA_TURNO=@MT AND ESTADO='ABIERTO'",
+                    conn, tx))
+                {
+                    cmdP.Parameters.Add("@MT", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idMesaTurno.Value;
+                    cmdP.ExecuteNonQuery();
+                }
+
+                // Cierra MESA_TURNO
+                using (var cmdMTclose = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                    "UPDATE MESA_TURNO SET ESTADO='CERRADA' WHERE ID_MESA_TURNO=@MT", conn, tx))
+                {
+                    cmdMTclose.Parameters.Add("@MT", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idMesaTurno.Value;
+                    cmdMTclose.ExecuteNonQuery();
+                }
+            }
+
+            // En todos los casos: dejar la mesa en LIBRE
+            using (var cmdM = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                "UPDATE MESAS SET ESTADO='LIBRE' WHERE ID_MESA=@M", conn, tx))
+            {
+                cmdM.Parameters.Add("@M", FirebirdSql.Data.FirebirdClient.FbDbType.Integer).Value = idMesa;
+                cmdM.ExecuteNonQuery();
             }
 
             tx.Commit();

@@ -88,6 +88,7 @@
             btnPruebaSae = new Button();
             txtRutaAux = new TextBox();
             txtRutaSae = new TextBox();
+            btnLiberarMesa = new Button();
             tabMain.SuspendLayout();
             tabMesas.SuspendLayout();
             statusMain.SuspendLayout();
@@ -157,6 +158,7 @@
             // 
             // panel1
             // 
+            panel1.Controls.Add(btnLiberarMesa);
             panel1.Controls.Add(btnAsignarMesero);
             panel1.Controls.Add(btnAbrirMesa);
             panel1.Controls.Add(lblMesaSel);
@@ -726,6 +728,16 @@
             txtRutaSae.Size = new Size(438, 23);
             txtRutaSae.TabIndex = 2;
             // 
+            // btnLiberarMesa
+            // 
+            btnLiberarMesa.Location = new Point(168, 350);
+            btnLiberarMesa.Name = "btnLiberarMesa";
+            btnLiberarMesa.Size = new Size(75, 23);
+            btnLiberarMesa.TabIndex = 6;
+            btnLiberarMesa.Text = "btnLiberarMesa";
+            btnLiberarMesa.UseVisualStyleBackColor = true;
+            btnLiberarMesa.Click += btnLiberarMesa_Click;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -735,6 +747,7 @@
             Name = "Form1";
             Text = "Form1";
             WindowState = FormWindowState.Maximized;
+            FormClosing += Form1_FormClosing;
             tabMain.ResumeLayout(false);
             tabMesas.ResumeLayout(false);
             tabMesas.PerformLayout();
@@ -818,5 +831,6 @@
         private ToolStripStatusLabel tslBascula;
         private Button btnCfgMesas;
         private Button btnCfgMeseros;
+        private Button btnLiberarMesa;
     }
 }

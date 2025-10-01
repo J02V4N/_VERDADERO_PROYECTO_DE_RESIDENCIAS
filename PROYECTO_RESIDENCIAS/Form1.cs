@@ -27,7 +27,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             public MesaEstado Estado { get; set; }
             public int? MeseroId { get; set; }
 
-           
+
             public string MeseroNombre { get; set; }     // ← NUEVA (para mostrar en la grilla)
 
         }
@@ -115,8 +115,8 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             // IDs del contexto actual (turno/mesa/pedido) cuando una mesa está abierta
 
 
-        // (opcional) helper para limpiar el contexto
-        
+            // (opcional) helper para limpiar el contexto
+
 
         }
 
@@ -290,10 +290,16 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
         private void ActualizarHabilitacionMeseroSegunMesa()
         {
             var mesa = MesaSeleccionada();
-            bool libre = mesa != null && mesa.Estado == MesaEstado.LIBRE;
+            bool hayMesa = mesa != null;
+            bool libre = hayMesa && mesa.Estado == MesaEstado.LIBRE;
+
             btnAsignarMesero.Enabled = libre;
             cboMesero.Enabled = libre;
+
+            // Liberar solo tiene sentido si NO está libre
+            btnLiberarMesa.Enabled = hayMesa && !libre;
         }
+
 
         private void dgvMesas_SelectionChanged(object sender, EventArgs e)
         {
@@ -1174,43 +1180,62 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         {
             _timerBascula.Enabled = false;
             _timerBascula.Dispose();
-            // Preguntar SIEMPRE si hay turno abierto
-            var idTurno = AuxRepo.GetTurnoAbiertoId();
-            if (idTurno == null) return; // nada que cerrar
+            // Permite que Windows cierre en apagado/sesión (opcional)
+            if (e.CloseReason == CloseReason.WindowsShutDown ||
+                e.CloseReason == CloseReason.TaskManagerClosing)
+                return;
 
-            if (AuxRepo.HayMesasAbiertas(idTurno.Value))
+            // 1) Regla estricta: NO se puede salir si hay mesas OCUPADAS o EN_CUENTA
+            if (AuxRepo.ExistenMesasOcupadasOEnCuenta())
             {
-                var drBloq = MessageBox.Show(
-                    "Hay mesas OCUPADAS/EN_CUENTA.\nDebes liberarlas antes de cerrar el turno.\n\n¿Cancelar salida?",
-                    "Cerrar turno", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
-                if (drBloq == DialogResult.OK)
+                MessageBox.Show(
+                    "Hay mesas OCUPADAS o EN_CUENTA.\n" +
+                    "Libera o cierra las mesas antes de salir.",
+                    "No se puede salir",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                e.Cancel = true;                 // ← clave: NO salir
+                                                 // (Opcional) enfoca la pestaña de Mesas si quieres:
+                                                 // tabControlPrincipal.SelectedTab = tabMesas;
+                return;
+            }
+
+            // 2) Si no hay mesas abiertas pero sí hay un turno abierto, pregunta si lo cierras
+            var idTurno = AuxRepo.GetTurnoAbiertoId();
+            if (idTurno != null)
+            {
+                var resp = MessageBox.Show(
+                    "Para salir es necesario CERRAR el turno actual.\n\n" +
+                    "Se cerrará el turno ahora. ¿Continuar?",
+                    "Cerrar turno",
+                    MessageBoxButtons.OKCancel,
+                    MessageBoxIcon.Question);
+
+                if (resp == DialogResult.Cancel)
                 {
-                    e.Cancel = true; // cancelamos salida para que las cierre
+                    e.Cancel = true;     // Cancelar salida
                     return;
                 }
-                // Si el usuario insiste en salir igualmente (Cancel), no cerramos turno y dejamos que salga.
-                return;
-            }
 
-            var dr = MessageBox.Show("¿Deseas cerrar el turno antes de salir?", "Cerrar turno",
-                                     MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
-
-            if (dr == DialogResult.Cancel)
-            {
-                e.Cancel = true;
-                return;
-            }
-
-            if (dr == DialogResult.Yes)
-            {
-                try { AuxRepo.CerrarTurno(idTurno.Value); }
+                try
+                {
+                    AuxRepo.CerrarTurno(idTurno.Value);
+                }
                 catch (Exception ex)
                 {
-                    MessageBox.Show(ex.Message, "No se pudo cerrar el turno", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    e.Cancel = true;
+                    MessageBox.Show(
+                        ex.Message,
+                        "No se pudo cerrar el turno",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+
+                    e.Cancel = true;     // Si no cierra turno, no sale
+                    return;
                 }
             }
-            // Si elige "No": se sale dejando el turno abierto (a veces útil en operaciones 24h).
+
+            // 3) Si no hay turno abierto, simplemente salir
+            
         }
 
         private bool CambiarEstadoMesa(Mesa m, MesaEstado nuevo)
@@ -1304,9 +1329,46 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             dgvMesas.Refresh();
         }
 
+        private void btnLiberarMesa_Click(object sender, EventArgs e)
+        {
+            var mesa = MesaSeleccionada();
+            if (mesa == null)
+            {
+                MessageBox.Show("Selecciona una mesa.", "Liberar mesa", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (mesa.Estado == MesaEstado.LIBRE)
+            {
+                MessageBox.Show("La mesa ya está LIBRE.", "Liberar mesa", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var dr = MessageBox.Show($"¿Poner la mesa '{mesa.Nombre}' en LIBRE?\n" +
+                                     $"(Se cerrará el registro activo y se cancelará el pedido en curso, si lo hay)",
+                                     "Confirmar", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+            if (dr != DialogResult.Yes) return;
+
+            try
+            {
+                AuxRepo.LiberarMesa(mesa.Id);
+
+                // Refleja en UI
+                mesa.Estado = MesaEstado.LIBRE;
+                mesa.MeseroId = null;
+                mesa.MeseroNombre = null;
+                dgvMesas.Refresh();
+
+                // Habilitación (ya puedes asignar mesero)
+                ActualizarHabilitacionMeseroSegunMesa();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "No se pudo liberar la mesa", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
 
 
-        
 
 
         //no se usa esto (y no borrar, si no, explota el programa)
@@ -1320,6 +1382,8 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         {
 
         }
+
+        
 
         //hasta aqui lo que no se usa
     }///fin public partial class Form1 : Form
