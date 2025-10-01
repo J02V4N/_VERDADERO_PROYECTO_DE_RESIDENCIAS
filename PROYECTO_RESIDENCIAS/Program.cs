@@ -30,6 +30,13 @@ namespace PROYECTO_RESIDENCIAS
                 SaeDb.Initialize(cs);
             }
 
+            using (var ft = new FormSeleccionTurno())
+            {
+                var dr = ft.ShowDialog();
+                if (dr != DialogResult.OK) return; // no continua si no eligen/abren turno
+                                                   // Si quieres guardar en memoria quién está:
+                                                   // AppSession.SetTurno(ft.IdTurnoSeleccionado, responsableX);
+            }
             Application.Run(new Form1());
         }
     }

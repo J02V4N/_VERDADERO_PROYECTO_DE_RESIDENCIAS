@@ -31,7 +31,7 @@ namespace PROYECTO_RESIDENCIAS
         {
             var list = new List<MesaDto>();
             string path;
-            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
 
             int? idTurno = GetTurnoAbiertoId();
 
@@ -164,7 +164,7 @@ namespace PROYECTO_RESIDENCIAS
         public static int GetOrOpenTurnoDelDia()
         {
             string path;
-            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
             using var tx = conn.BeginTransaction();
 
             // Turno abierto de HOY = FECHA=CURRENT_DATE y HORA_FIN IS NULL
@@ -208,7 +208,7 @@ namespace PROYECTO_RESIDENCIAS
         public static AbrirMesaResult AbrirMesa(int idMesa, int idMesero)
         {
             string path;
-            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
             using var tx = conn.BeginTransaction();
 
             // 1) Turno del día (abierto)
@@ -320,11 +320,113 @@ namespace PROYECTO_RESIDENCIAS
         public static int? GetTurnoAbiertoId()
         {
             string path;
-            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
             using var cmd = new FirebirdSql.Data.FirebirdClient.FbCommand(
                 "SELECT ID_TURNO FROM TURNOS WHERE FECHA = CURRENT_DATE AND HORA_FIN IS NULL ROWS 1", conn);
             var o = cmd.ExecuteScalar();
             return (o != null && o != DBNull.Value) ? Convert.ToInt32(o) : (int?)null;
+        }
+
+
+        public class TurnoInfo
+        {
+            public int Id { get; set; }
+            public DateTime Fecha { get; set; }
+            public TimeSpan HoraIni { get; set; }
+            public TimeSpan? HoraFin { get; set; }
+            public string Responsable { get; set; }
+            public string Obs { get; set; }
+        }
+
+        
+        public static TurnoInfo? ObtenerTurnoAbiertoInfo()
+        {
+            string path;
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
+            using var cmd = new FbCommand(@"
+        SELECT ID_TURNO, FECHA, HORA_INI, HORA_FIN, RESPONSABLE, COALESCE(OBS,'')
+        FROM TURNOS
+        WHERE FECHA = CURRENT_DATE AND HORA_FIN IS NULL
+        ROWS 1", conn);
+            using var rd = cmd.ExecuteReader();
+            if (!rd.Read()) return null;
+            return new TurnoInfo
+            {
+                Id = Convert.ToInt32(rd[0]),
+                Fecha = (DateTime)rd[1],
+                HoraIni = (TimeSpan)rd[2],
+                HoraFin = rd[3] == DBNull.Value ? (TimeSpan?)null : (TimeSpan)rd[3],
+                Responsable = rd[4]?.ToString() ?? "",
+                Obs = rd[5]?.ToString() ?? ""
+            };
+        }
+
+        public static int AbrirTurno(string responsable, string obs)
+        {
+            if (string.IsNullOrWhiteSpace(responsable))
+                throw new ArgumentException("Captura el responsable del turno.");
+
+            string path;
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
+            using var tx = conn.BeginTransaction();
+
+            // si ya hay turno abierto hoy, devuélvelo
+            using (var sel = new FbCommand(
+                "SELECT ID_TURNO FROM TURNOS WHERE FECHA = CURRENT_DATE AND HORA_FIN IS NULL ROWS 1", conn, tx))
+            {
+                var o = sel.ExecuteScalar();
+                if (o != null && o != DBNull.Value)
+                {
+                    tx.Commit();
+                    return Convert.ToInt32(o);
+                }
+            }
+
+            using (var ins = new FbCommand(
+                "INSERT INTO TURNOS (FECHA, HORA_INI, RESPONSABLE, OBS) " +
+                "VALUES (CURRENT_DATE, CURRENT_TIME, @R, @O) RETURNING ID_TURNO", conn, tx))
+            {
+                ins.Parameters.Add("@R", FbDbType.VarChar, 60).Value = responsable.Trim();
+                ins.Parameters.Add("@O", FbDbType.VarChar, 255).Value = (object?)obs ?? DBNull.Value;
+                int id = Convert.ToInt32(ins.ExecuteScalar());
+                tx.Commit();
+                return id;
+            }
+        }
+
+        public static bool HayMesasAbiertas(int idTurno)
+        {
+            string path;
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
+            using var cmd = new FbCommand(
+                "SELECT COUNT(*) FROM MESA_TURNO WHERE ID_TURNO=@T AND ESTADO IN ('OCUPADA','EN_CUENTA')", conn);
+            cmd.Parameters.Add("@T", FbDbType.Integer).Value = idTurno;
+            return Convert.ToInt32(cmd.ExecuteScalar()) > 0;
+        }
+
+        public static void CerrarTurno(int idTurno)
+        {
+            string path;
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
+            using var tx = conn.BeginTransaction();
+
+            using (var chk = new FbCommand(
+                "SELECT COUNT(*) FROM MESA_TURNO WHERE ID_TURNO=@T AND ESTADO IN ('OCUPADA','EN_CUENTA')", conn, tx))
+            {
+                chk.Parameters.Add("@T", FbDbType.Integer).Value = idTurno;
+                int abiertas = Convert.ToInt32(chk.ExecuteScalar());
+                if (abiertas > 0)
+                    throw new InvalidOperationException("No puedes cerrar el turno: hay mesas OCUPADAS/EN_CUENTA.");
+            }
+
+            using (var up = new FbCommand(
+                "UPDATE TURNOS SET HORA_FIN = CURRENT_TIME WHERE ID_TURNO=@T", conn, tx))
+            {
+                up.Parameters.Add("@T", FbDbType.Integer).Value = idTurno;
+                up.ExecuteNonQuery();
+            }
+
+            tx.Commit();
         }
 
 

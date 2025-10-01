@@ -1174,6 +1174,43 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         {
             _timerBascula.Enabled = false;
             _timerBascula.Dispose();
+            // Preguntar SIEMPRE si hay turno abierto
+            var idTurno = AuxRepo.GetTurnoAbiertoId();
+            if (idTurno == null) return; // nada que cerrar
+
+            if (AuxRepo.HayMesasAbiertas(idTurno.Value))
+            {
+                var drBloq = MessageBox.Show(
+                    "Hay mesas OCUPADAS/EN_CUENTA.\nDebes liberarlas antes de cerrar el turno.\n\n¿Cancelar salida?",
+                    "Cerrar turno", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning);
+                if (drBloq == DialogResult.OK)
+                {
+                    e.Cancel = true; // cancelamos salida para que las cierre
+                    return;
+                }
+                // Si el usuario insiste en salir igualmente (Cancel), no cerramos turno y dejamos que salga.
+                return;
+            }
+
+            var dr = MessageBox.Show("¿Deseas cerrar el turno antes de salir?", "Cerrar turno",
+                                     MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+
+            if (dr == DialogResult.Cancel)
+            {
+                e.Cancel = true;
+                return;
+            }
+
+            if (dr == DialogResult.Yes)
+            {
+                try { AuxRepo.CerrarTurno(idTurno.Value); }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message, "No se pudo cerrar el turno", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    e.Cancel = true;
+                }
+            }
+            // Si elige "No": se sale dejando el turno abierto (a veces útil en operaciones 24h).
         }
 
         private bool CambiarEstadoMesa(Mesa m, MesaEstado nuevo)
@@ -1266,6 +1303,10 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             mesa.MeseroNombre = mesero.Nombre;
             dgvMesas.Refresh();
         }
+
+
+
+        
 
 
         //no se usa esto (y no borrar, si no, explota el programa)
