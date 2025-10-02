@@ -35,6 +35,7 @@
             tslAux = new ToolStripStatusLabel();
             tslBascula = new ToolStripStatusLabel();
             panel1 = new Panel();
+            btnLiberarMesa = new Button();
             btnAsignarMesero = new Button();
             btnAbrirMesa = new Button();
             lblMesaSel = new Label();
@@ -88,7 +89,6 @@
             btnPruebaSae = new Button();
             txtRutaAux = new TextBox();
             txtRutaSae = new TextBox();
-            btnLiberarMesa = new Button();
             tabMain.SuspendLayout();
             tabMesas.SuspendLayout();
             statusMain.SuspendLayout();
@@ -168,6 +168,16 @@
             panel1.Name = "panel1";
             panel1.Size = new Size(406, 416);
             panel1.TabIndex = 3;
+            // 
+            // btnLiberarMesa
+            // 
+            btnLiberarMesa.Location = new Point(168, 350);
+            btnLiberarMesa.Name = "btnLiberarMesa";
+            btnLiberarMesa.Size = new Size(75, 23);
+            btnLiberarMesa.TabIndex = 6;
+            btnLiberarMesa.Text = "btnLiberarMesa";
+            btnLiberarMesa.UseVisualStyleBackColor = true;
+            btnLiberarMesa.Click += btnLiberarMesa_Click;
             // 
             // btnAsignarMesero
             // 
@@ -727,16 +737,6 @@
             txtRutaSae.ReadOnly = true;
             txtRutaSae.Size = new Size(438, 23);
             txtRutaSae.TabIndex = 2;
-            // 
-            // btnLiberarMesa
-            // 
-            btnLiberarMesa.Location = new Point(168, 350);
-            btnLiberarMesa.Name = "btnLiberarMesa";
-            btnLiberarMesa.Size = new Size(75, 23);
-            btnLiberarMesa.TabIndex = 6;
-            btnLiberarMesa.Text = "btnLiberarMesa";
-            btnLiberarMesa.UseVisualStyleBackColor = true;
-            btnLiberarMesa.Click += btnLiberarMesa_Click;
             // 
             // Form1
             // 

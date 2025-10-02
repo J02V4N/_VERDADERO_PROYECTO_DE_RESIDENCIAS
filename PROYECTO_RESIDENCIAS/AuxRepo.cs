@@ -407,7 +407,7 @@ namespace PROYECTO_RESIDENCIAS
         public static void CerrarTurno(int idTurno)
         {
             string path;
-            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
             using var tx = conn.BeginTransaction();
 
             // 1) ¿Mesas con MESA_TURNO abierto en este turno?
@@ -446,7 +446,7 @@ namespace PROYECTO_RESIDENCIAS
         public static bool ExistenMesasOcupadasOEnCuenta()
         {
             string path;
-            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
             using var cmd = new FirebirdSql.Data.FirebirdClient.FbCommand(
                 "SELECT COUNT(*) FROM MESAS WHERE ESTADO IN ('OCUPADA','EN_CUENTA')", conn);
             return System.Convert.ToInt32(cmd.ExecuteScalar()) > 0;
@@ -456,7 +456,7 @@ namespace PROYECTO_RESIDENCIAS
         public static void LiberarMesa(int idMesa)
         {
             string path;
-            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "UTF8");
+            using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
             using var tx = conn.BeginTransaction();
 
             // Si hay turno abierto, intenta cerrar el MESA_TURNO activo de esta mesa
