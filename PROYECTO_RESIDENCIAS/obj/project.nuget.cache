@@ -1,10 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "18BLFs0D8qI=",
+  "dgSpecHash": "jy4HU1LGa3M=",
   "success": true,
-  "projectFilePath": "C:\\Users\\JOSE\\Desktop\\PROYECTO-RESIDENCIA\\PROYECTO_RESIDENCIAS\\PROYECTO_RESIDENCIAS.csproj",
+  "projectFilePath": "C:\\Users\\DELL\\Desktop\\PROYECTO_RESIDENCIA\\PROYECTO_RESIDENCIAS\\PROYECTO_RESIDENCIAS.csproj",
   "expectedPackageFiles": [
-    "C:\\Users\\JOSE\\.nuget\\packages\\firebirdsql.data.firebirdclient\\10.3.3\\firebirdsql.data.firebirdclient.10.3.3.nupkg.sha512"
+    "C:\\Users\\DELL\\.nuget\\packages\\firebirdsql.data.firebirdclient\\10.3.3\\firebirdsql.data.firebirdclient.10.3.3.nupkg.sha512"
   ],
   "logs": []
 }

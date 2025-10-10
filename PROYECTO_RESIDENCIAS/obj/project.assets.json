@@ -42,24 +42,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\JOSE\\.nuget\\packages\\": {},
-    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
+    "C:\\Users\\DELL\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\JOSE\\Desktop\\PROYECTO-RESIDENCIA\\PROYECTO_RESIDENCIAS\\PROYECTO_RESIDENCIAS.csproj",
+      "projectUniqueName": "C:\\Users\\DELL\\Desktop\\PROYECTO_RESIDENCIA\\PROYECTO_RESIDENCIAS\\PROYECTO_RESIDENCIAS.csproj",
       "projectName": "PROYECTO_RESIDENCIAS",
-      "projectPath": "C:\\Users\\JOSE\\Desktop\\PROYECTO-RESIDENCIA\\PROYECTO_RESIDENCIAS\\PROYECTO_RESIDENCIAS.csproj",
-      "packagesPath": "C:\\Users\\JOSE\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\JOSE\\Desktop\\PROYECTO-RESIDENCIA\\PROYECTO_RESIDENCIAS\\obj\\",
+      "projectPath": "C:\\Users\\DELL\\Desktop\\PROYECTO_RESIDENCIA\\PROYECTO_RESIDENCIAS\\PROYECTO_RESIDENCIAS.csproj",
+      "packagesPath": "C:\\Users\\DELL\\.nuget\\packages\\",
+      "outputPath": "C:\\Users\\DELL\\Desktop\\PROYECTO_RESIDENCIA\\PROYECTO_RESIDENCIAS\\obj\\",
       "projectStyle": "PackageReference",
-      "fallbackFolders": [
-        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
-      ],
       "configFilePaths": [
-        "C:\\Users\\JOSE\\AppData\\Roaming\\NuGet\\NuGet.Config",
-        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+        "C:\\Users\\DELL\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
