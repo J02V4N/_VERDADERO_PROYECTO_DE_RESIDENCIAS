@@ -6,6 +6,7 @@ using System.Drawing.Printing;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
+using static PROYECTO_RESIDENCIAS.SaeDb;
 
 namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 {
@@ -116,6 +117,10 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
 
             // (opcional) helper para limpiar el contexto
+
+
+            ConfigurarGridPlatillos();
+            CargarPlatillosDesdeSae();
 
 
         }
@@ -1369,6 +1374,80 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         }
 
 
+
+
+        private BindingList<PlatilloDto> _platillos = new BindingList<PlatilloDto>();
+
+        private void CargarPlatillosDesdeSae()
+        {
+            try
+            {
+                // Puedes hacer que lista/almacén vengan de config; de momento: lista 1, almacén 1
+                var rows = SaeDb.ListarPlatillos(listaPrecio: 1, almacen: 1);
+                _platillos = new BindingList<PlatilloDto>(rows);
+                dgvPlatillos.AutoGenerateColumns = false; // usaremos columnas definidas a mano para mejor formato
+                dgvPlatillos.DataSource = _platillos;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "No fue posible leer platillos de SAE", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+        private void ConfigurarGridPlatillos()
+        {
+            dgvPlatillos.Columns.Clear();
+
+            dgvPlatillos.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = "Clave",
+                HeaderText = "Clave",
+                Width = 120,
+                ReadOnly = true
+            });
+            dgvPlatillos.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = "Descripcion",
+                HeaderText = "Descripción",
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+                ReadOnly = true
+            });
+            dgvPlatillos.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = "Unidad",
+                HeaderText = "UM",
+                Width = 60,
+                ReadOnly = true
+            });
+            dgvPlatillos.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = "Precio",
+                HeaderText = "Precio",
+                Width = 90,
+                ReadOnly = true,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "C2", Alignment = DataGridViewContentAlignment.MiddleRight }
+            });
+            dgvPlatillos.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = "Existencia",
+                HeaderText = "Exist.",
+                Width = 80,
+                ReadOnly = true,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
+            });
+            dgvPlatillos.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = "Status",
+                HeaderText = "Estatus",
+                Width = 70,
+                ReadOnly = true
+            });
+
+            dgvPlatillos.AllowUserToAddRows = false;
+            dgvPlatillos.AllowUserToDeleteRows = false;
+            dgvPlatillos.MultiSelect = false;
+            dgvPlatillos.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+        }
 
 
         //no se usa esto (y no borrar, si no, explota el programa)

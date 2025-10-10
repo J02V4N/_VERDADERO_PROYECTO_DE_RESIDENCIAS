@@ -69,31 +69,7 @@ namespace PROYECTO_RESIDENCIAS
             return new FbConnection(cs.ToString());
         }
 
-        //---------------------------------------------------------------------------------------------- el nuevo
-        //public static bool TestConnection(out string error)
-        //{
-           // error = null;
-           // try
-            //{
-               // using (var con = GetConnection())
-               // {
-                 //   con.Open();
-                  //  using (var cmd = new FbCommand("SELECT 1 FROM RDB$DATABASE", con))
-                  //  {
-                    //    var r = cmd.ExecuteScalar();
-                    //    return Convert.ToInt32(r) == 1;
-                   // }
-               // }
-          //  }
-           // catch (Exception ex)
-           // {
-            //    error = ex.Message;
-             //   return false;
-            //}
-       // }
-        //-------------------------------------------------------------------------------------------- el nuevo
-
-
+        
         //----------------------------------------------------------------------------------------------el original
         public static void TestConnection(FbConnection conn)
         {
@@ -187,6 +163,108 @@ namespace PROYECTO_RESIDENCIAS
 
             throw new Exception($"No encontré la tabla para base '{baseName}'.");
         }
+
+
+
+        //aqui empiezan los nuevos cambios, asi que, atencion, por si las dudas, todo lo que esta depues de esto, es a parter de las 10:10 am del 10 de octubre (mes 10 xD)
+
+        public class PlatilloDto
+        {
+            public string Clave { get; set; }
+            public string Descripcion { get; set; }
+            public string Unidad { get; set; }
+            public decimal Precio { get; set; }
+            public decimal Existencia { get; set; }
+            public string Status { get; set; }
+        }
+
+        public static List<PlatilloDto> ListarPlatillos(int listaPrecio = 1, int? almacen = 1)
+        {
+            using var conn =  GetOpenConnection(); // ← usa tu método existente que ya respeta la empresa elegida
+            string tINVE = ResolveTableName(conn, "INVE");
+            string tPXP = ResolveTableName(conn, "PRECIO_X_PROD");
+            string tMULT = ResolveTableName(conn, "MULT");
+
+            // Nota:
+            // - Precio: de PRECIO_X_PROD?? por CVE_PRECIO
+            // - Existencia: de MULT?? por CVE_ALM (si viene null, intento EXIST de INVE?? como fallback)
+            // - Solo STATUS='A' (activos) para el menú
+            var sql = $@"
+SELECT
+    I.CVE_ART,
+    I.DESCR,
+    I.UNI_MED,
+    I.STATUS,
+    COALESCE(PX.PRECIO, 0) AS PRECIO,
+    COALESCE(M.EXIST, I.EXIST) AS EXISTENCIA
+FROM {tINVE} I
+LEFT JOIN {tPXP} PX
+    ON PX.CVE_ART = I.CVE_ART
+   AND PX.CVE_PRECIO = @LISTA
+LEFT JOIN {tMULT} M
+    ON M.CVE_ART = I.CVE_ART
+   AND (@ALM IS NULL OR M.CVE_ALM = @ALM)
+WHERE I.STATUS = 'A'
+ORDER BY I.DESCR";
+
+            using var cmd = new FbCommand(sql, conn);
+            cmd.Parameters.Add("@LISTA", FbDbType.Integer).Value = listaPrecio;
+            cmd.Parameters.Add("@ALM", FbDbType.Integer).Value = (object?)almacen ?? DBNull.Value;
+
+            var list = new List<PlatilloDto>();
+            using var rd = cmd.ExecuteReader();
+            while (rd.Read())
+            {
+                list.Add(new PlatilloDto
+                {
+                    Clave = rd.GetString(0).Trim(),
+                    Descripcion = rd.IsDBNull(1) ? "" : rd.GetString(1).Trim(),
+                    Unidad = rd.IsDBNull(2) ? "" : rd.GetString(2).Trim(),
+                    Status = rd.IsDBNull(3) ? "" : rd.GetString(3).Trim(),
+                    Precio = rd.IsDBNull(4) ? 0m : Convert.ToDecimal(rd.GetValue(4)),
+                    Existencia = rd.IsDBNull(5) ? 0m : Convert.ToDecimal(rd.GetValue(5))
+                });
+            }
+
+            return list;
+        }
+
+        /// <summary>
+        /// Resuelve nombres reales con sufijo (p.ej. "INVE" -> "INVE01") consultando RDB$RELATIONS.
+        /// Si ya tienes un helper equivalente, usa ese y borra este.
+        /// </summary>
+        private static string ResolveTableName(FbConnection conn, string baseName)
+        {
+            // Busca la primera coincidencia exacta con sufijo 2 dígitos (01..99) o sin sufijo.
+            using var cmd = new FbCommand(@"
+        SELECT TRIM(RDB$RELATION_NAME)
+        FROM RDB$RELATIONS
+        WHERE RDB$SYSTEM_FLAG = 0
+          AND (RDB$RELATION_NAME = @BN
+               OR RDB$RELATION_NAME STARTING WITH @BN)
+        ORDER BY RDB$RELATION_NAME", conn);
+
+            cmd.Parameters.Add("@BN", FbDbType.VarChar, 31).Value = baseName;
+            using var rd = cmd.ExecuteReader();
+            string? found = null;
+            while (rd.Read())
+            {
+                var name = rd.GetString(0).Trim();
+                // Preferimos el patrón con sufijo de 2 dígitos si existe (INVE01, PRECIO_X_PROD01, MULT01, ...)
+                if (name.Equals(baseName, StringComparison.OrdinalIgnoreCase))
+                    found ??= name;
+                if (name.Length == baseName.Length + 2 &&
+                    int.TryParse(name.Substring(baseName.Length, 2), out _))
+                {
+                    found = name;
+                    break;
+                }
+            }
+            if (found == null)
+                throw new InvalidOperationException($"No se encontró la tabla para '{baseName}??' en la base de SAE.");
+            return found;
+        }
+
 
     }
 }
