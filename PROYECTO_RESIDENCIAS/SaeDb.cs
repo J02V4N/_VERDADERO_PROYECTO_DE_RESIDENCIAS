@@ -178,12 +178,27 @@ namespace PROYECTO_RESIDENCIAS
             public string Status { get; set; }
         }
 
-        public static List<PlatilloDto> ListarPlatillos(int listaPrecio = 1, int? almacen = 1)
+        public static List<PlatilloDto> ListarPlatillos(
+    int listaPrecio = 1,
+    int? almacen = 1,
+    string clavePrefix = "Prep",   // por defecto, solo CVE_ART que comiencen con PREP
+    string linProd = "Prep"          // opcional, por si luego filtras por línea
+)
         {
             using var conn = GetOpenConnection();
+
             string tINVE = GetTableName(conn, "INVE");
             string tPXP = GetTableName(conn, "PRECIO_X_PROD");
             string tMULT = GetTableName(conn, "MULT");
+
+            
+            // WHERE dinámico (ahora case-insensitive)
+            var where = "WHERE I.STATUS = 'A' ";
+            if (!string.IsNullOrWhiteSpace(clavePrefix))
+                where += "AND UPPER(I.CVE_ART) STARTING WITH @PFX ";  // <- clave
+            if (!string.IsNullOrWhiteSpace(linProd))
+                where += "AND I.LIN_PROD = @LIN ";
+
 
             var sql = $@"
 SELECT
@@ -200,12 +215,17 @@ LEFT JOIN {tPXP} PX
 LEFT JOIN {tMULT} M
        ON M.CVE_ART = I.CVE_ART
       AND (@ALM IS NULL OR M.CVE_ALM = @ALM)
-WHERE I.STATUS = 'A'
+{where}
 ORDER BY I.DESCR";
 
-            using var cmd = new FbCommand(sql, conn);
+            using var cmd = new FirebirdSql.Data.FirebirdClient.FbCommand(sql, conn);
             cmd.Parameters.Add("@LISTA", FbDbType.Integer).Value = listaPrecio;
             cmd.Parameters.Add("@ALM", FbDbType.Integer).Value = (object?)almacen ?? DBNull.Value;
+            if (!string.IsNullOrWhiteSpace(clavePrefix))
+                cmd.Parameters.Add("@PFX", FbDbType.VarChar, 32).Value = clavePrefix.ToUpperInvariant(); // <- en mayúsculas
+            if (!string.IsNullOrWhiteSpace(linProd))
+                cmd.Parameters.Add("@LIN", FbDbType.VarChar, 20).Value = linProd;
+
 
             var list = new List<PlatilloDto>();
             using var rd = cmd.ExecuteReader();
@@ -222,8 +242,9 @@ ORDER BY I.DESCR";
                 });
             }
 
-            return list;
+            return list;  // ← clave: siempre devolvemos la lista
         }
+
 
 
         /// <summary>

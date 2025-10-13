@@ -1264,7 +1264,7 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             }
 
             // 3) Si no hay turno abierto, simplemente salir
-            
+
         }
 
         private bool CambiarEstadoMesa(Mesa m, MesaEstado nuevo)
@@ -1400,11 +1400,10 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
 
 
 
-       
 
-        
-        //edgar
-        
+
+
+
 
 
         //no se usa esto (y no borrar, si no, explota el programa)
@@ -1419,7 +1418,22 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
 
         }
 
-        
+        private void Form1_Load_1(object sender, EventArgs e)
+        {
+
+        }
+
+        private void btnAgregarLinea_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void btnIrCobro_Click(object sender, EventArgs e)
+        {
+
+        }
+
+
 
         //hasta aqui lo que no se usa
     }///fin public partial class Form1 : Form
