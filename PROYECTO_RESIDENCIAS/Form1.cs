@@ -119,8 +119,6 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             // (opcional) helper para limpiar el contexto
 
 
-            ConfigurarGridPlatillos();
-            CargarPlatillosDesdeSae();
 
 
         }
@@ -145,7 +143,8 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
             CargarMeserosDesdeAux();
             CargarMesasDesdeAux();
-            SeedPlatillos();
+            CargarPlatillosDesdeSae_ListBox();
+
 
             // 2) Bindings
             ConfigurarGrids();
@@ -279,17 +278,42 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
 
 
-        private void SeedPlatillos()
+        private void CargarPlatillosDesdeSae_ListBox()
         {
-            _platillos = new List<Platillo>
+            try
             {
-                new Platillo{ Clave="TAC-AR", Nombre="Tacos Arrachera", PrecioUnit=35m, RequierePeso=false },
-                new Platillo{ Clave="PST-AL", Nombre="Pasta Alfredo", PrecioUnit=89m, RequierePeso=false },
-                new Platillo{ Clave="CAR-AL", Nombre="Carne al peso", PrecioUnit=360m, RequierePeso=true }, // $/kg
-                new Platillo{ Clave="QSO-FD", Nombre="Queso fundido", PrecioUnit=75m, RequierePeso=false },
-                new Platillo{ Clave="CAM-PS", Nombre="Camarón al peso", PrecioUnit=520m, RequierePeso=true } // $/kg
-            };
+                // toma lista/almacén desde CONFIG si ya los cargas a los combos; si no, defaults 1/1
+                int lista = 1;
+                if (int.TryParse(cboListaPrecios.Text, out var lp)) lista = lp;
+
+                int? alm = 1;
+                if (int.TryParse(cboAlmacen.Text, out var a)) alm = a;
+
+                var rows = SaeDb.ListarPlatillos(listaPrecio: lista, almacen: alm);
+
+                // Mapea a tu clase de pedido (la ListBox usa el .ToString() que ya definiste)
+                _platillos = rows.Select(r => new Platillo
+                {
+                    Clave = r.Clave,
+                    Nombre = r.Descripcion,
+                    PrecioUnit = r.Precio,       // $ por pieza (si luego quieres manejar $/kg, aquí lo adaptamos)
+                    RequierePeso = false           // por ahora en false; luego lo atamos a una bandera/INSUMO_EXT
+                }).ToList();
+
+                lbPlatillos.DataSource = null;
+                lbPlatillos.DataSource = _platillos;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("No fue posible leer platillos de SAE.\n" + ex.Message,
+                    "Platillos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+
+                // fallback (opcional): deja vacía o llama SeedPlatillos();
+                _platillos = new List<Platillo>();
+                lbPlatillos.DataSource = _platillos;
+            }
         }
+
 
 
         private void ActualizarHabilitacionMeseroSegunMesa()
@@ -1376,78 +1400,11 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
 
 
 
-        private BindingList<PlatilloDto> _platillos = new BindingList<PlatilloDto>();
+       
 
-        private void CargarPlatillosDesdeSae()
-        {
-            try
-            {
-                // Puedes hacer que lista/almacén vengan de config; de momento: lista 1, almacén 1
-                var rows = SaeDb.ListarPlatillos(listaPrecio: 1, almacen: 1);
-                _platillos = new BindingList<PlatilloDto>(rows);
-                dgvPlatillos.AutoGenerateColumns = false; // usaremos columnas definidas a mano para mejor formato
-                dgvPlatillos.DataSource = _platillos;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message, "No fue posible leer platillos de SAE", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-        }
+        
         //edgar
-        private void ConfigurarGridPlatillos()
-        {
-            dgvPlatillos.Columns.Clear();
-
-            dgvPlatillos.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                DataPropertyName = "Clave",
-                HeaderText = "Clave",
-                Width = 120,
-                ReadOnly = true
-            });
-            dgvPlatillos.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                DataPropertyName = "Descripcion",
-                HeaderText = "Descripción",
-                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-                ReadOnly = true
-            });
-            dgvPlatillos.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                DataPropertyName = "Unidad",
-                HeaderText = "UM",
-                Width = 60,
-                ReadOnly = true
-            });
-            dgvPlatillos.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                DataPropertyName = "Precio",
-                HeaderText = "Precio",
-                Width = 90,
-                ReadOnly = true,
-                DefaultCellStyle = new DataGridViewCellStyle { Format = "C2", Alignment = DataGridViewContentAlignment.MiddleRight }
-            });
-            dgvPlatillos.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                DataPropertyName = "Existencia",
-                HeaderText = "Exist.",
-                Width = 80,
-                ReadOnly = true,
-                DefaultCellStyle = new DataGridViewCellStyle { Format = "N2", Alignment = DataGridViewContentAlignment.MiddleRight }
-            });
-            dgvPlatillos.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                DataPropertyName = "Status",
-                HeaderText = "Estatus",
-                Width = 70,
-                ReadOnly = true
-            });
-
-            dgvPlatillos.AllowUserToAddRows = false;
-            dgvPlatillos.AllowUserToDeleteRows = false;
-            dgvPlatillos.MultiSelect = false;
-            dgvPlatillos.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-        }
+        
 
 
         //no se usa esto (y no borrar, si no, explota el programa)

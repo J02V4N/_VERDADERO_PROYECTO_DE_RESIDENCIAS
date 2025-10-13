@@ -180,15 +180,11 @@ namespace PROYECTO_RESIDENCIAS
 
         public static List<PlatilloDto> ListarPlatillos(int listaPrecio = 1, int? almacen = 1)
         {
-            using var conn =  GetOpenConnection(); // ← usa tu método existente que ya respeta la empresa elegida
-            string tINVE = ResolveTableName(conn, "INVE");
-            string tPXP = ResolveTableName(conn, "PRECIO_X_PROD");
-            string tMULT = ResolveTableName(conn, "MULT");
+            using var conn = GetOpenConnection();
+            string tINVE = GetTableName(conn, "INVE");
+            string tPXP = GetTableName(conn, "PRECIO_X_PROD");
+            string tMULT = GetTableName(conn, "MULT");
 
-            // Nota:
-            // - Precio: de PRECIO_X_PROD?? por CVE_PRECIO
-            // - Existencia: de MULT?? por CVE_ALM (si viene null, intento EXIST de INVE?? como fallback)
-            // - Solo STATUS='A' (activos) para el menú
             var sql = $@"
 SELECT
     I.CVE_ART,
@@ -199,11 +195,11 @@ SELECT
     COALESCE(M.EXIST, I.EXIST) AS EXISTENCIA
 FROM {tINVE} I
 LEFT JOIN {tPXP} PX
-    ON PX.CVE_ART = I.CVE_ART
-   AND PX.CVE_PRECIO = @LISTA
+       ON PX.CVE_ART = I.CVE_ART
+      AND PX.CVE_PRECIO = @LISTA
 LEFT JOIN {tMULT} M
-    ON M.CVE_ART = I.CVE_ART
-   AND (@ALM IS NULL OR M.CVE_ALM = @ALM)
+       ON M.CVE_ART = I.CVE_ART
+      AND (@ALM IS NULL OR M.CVE_ALM = @ALM)
 WHERE I.STATUS = 'A'
 ORDER BY I.DESCR";
 
@@ -228,6 +224,7 @@ ORDER BY I.DESCR";
 
             return list;
         }
+
 
         /// <summary>
         /// Resuelve nombres reales con sufijo (p.ej. "INVE" -> "INVE01") consultando RDB$RELATIONS.
@@ -265,6 +262,37 @@ ORDER BY I.DESCR";
             return found;
         }
 
+        public static FbConnection GetOpenConnection()
+        {
+            // 1) Si ya inicializaste SaeDb.Initialize(connectionString)
+            if (!string.IsNullOrWhiteSpace(ConnectionString))
+            {
+                var c = new FbConnection(ConnectionString);
+                c.Open();
+                return c;
+            }
+
+            // 2) Fallback: lee SAE_FDB de la BD Aux y arma la conexión
+            string auxPath;
+            using (var aux = AuxDbInitializer.EnsureCreated(out auxPath, charset: "ISO8859_1"))
+            using (var cmd = new FbCommand("SELECT VALOR FROM CONFIG WHERE CLAVE='SAE_FDB'", aux))
+            {
+                var o = cmd.ExecuteScalar();
+                var saePath = o?.ToString();
+                if (string.IsNullOrWhiteSpace(saePath))
+                    throw new InvalidOperationException("CONFIG.SAE_FDB está vacío. Selecciona la empresa primero.");
+
+                var con = CreateConnection(
+                    databasePath: saePath,
+                    server: "127.0.0.1",
+                    port: 3050,
+                    user: "SYSDBA",
+                    password: "masterkey",
+                    charset: "ISO8859_1");
+                con.Open();
+                return con;
+            }
+        }
 
     }
 }
