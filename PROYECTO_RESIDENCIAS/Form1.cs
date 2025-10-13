@@ -1393,7 +1393,7 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
                 MessageBox.Show(ex.Message, "No fue posible leer platillos de SAE", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
-
+        //edgar
         private void ConfigurarGridPlatillos()
         {
             dgvPlatillos.Columns.Clear();
