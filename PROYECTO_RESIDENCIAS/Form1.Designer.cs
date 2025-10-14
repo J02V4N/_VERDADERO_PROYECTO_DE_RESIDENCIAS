@@ -42,14 +42,14 @@
             cboMesero = new ComboBox();
             dgvMesas = new DataGridView();
             tabPedido = new TabPage();
+            dgvReceta = new DataGridView();
+            btnQuitarLinea = new Button();
             label1 = new Label();
             txtBuscarPlatillo = new TextBox();
             btnIrCobro = new Button();
             lblTotales = new Label();
             dgvPedido = new DataGridView();
             btnAgregarLinea = new Button();
-            txtPesoGr = new TextBox();
-            chkSimularBascula = new CheckBox();
             lbPlatillos = new ListBox();
             tabCobro = new TabPage();
             btnReimprimir = new Button();
@@ -90,13 +90,13 @@
             btnPruebaSae = new Button();
             txtRutaAux = new TextBox();
             txtRutaSae = new TextBox();
-            btnQuitarLinea = new Button();
             tabMain.SuspendLayout();
             tabMesas.SuspendLayout();
             statusMain.SuspendLayout();
             panel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)dgvMesas).BeginInit();
             tabPedido.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvReceta).BeginInit();
             ((System.ComponentModel.ISupportInitialize)dgvPedido).BeginInit();
             tabCobro.SuspendLayout();
             tabInventario.SuspendLayout();
@@ -116,7 +116,7 @@
             tabMain.Margin = new Padding(4, 5, 4, 5);
             tabMain.Name = "tabMain";
             tabMain.SelectedIndex = 0;
-            tabMain.Size = new Size(1143, 750);
+            tabMain.Size = new Size(1898, 1024);
             tabMain.TabIndex = 0;
             // 
             // tabMesas
@@ -128,7 +128,7 @@
             tabMesas.Margin = new Padding(4, 5, 4, 5);
             tabMesas.Name = "tabMesas";
             tabMesas.Padding = new Padding(4, 5, 4, 5);
-            tabMesas.Size = new Size(1135, 712);
+            tabMesas.Size = new Size(1890, 986);
             tabMesas.TabIndex = 0;
             tabMesas.Text = "tabMesas";
             tabMesas.UseVisualStyleBackColor = true;
@@ -137,10 +137,10 @@
             // 
             statusMain.ImageScalingSize = new Size(24, 24);
             statusMain.Items.AddRange(new ToolStripItem[] { tslSae, tslAux, tslBascula });
-            statusMain.Location = new Point(547, 675);
+            statusMain.Location = new Point(547, 949);
             statusMain.Name = "statusMain";
             statusMain.Padding = new Padding(1, 0, 20, 0);
-            statusMain.Size = new Size(584, 32);
+            statusMain.Size = new Size(1339, 32);
             statusMain.TabIndex = 4;
             statusMain.Text = "statusStrip1";
             // 
@@ -173,7 +173,7 @@
             panel1.Location = new Point(547, 5);
             panel1.Margin = new Padding(4, 5, 4, 5);
             panel1.Name = "panel1";
-            panel1.Size = new Size(584, 702);
+            panel1.Size = new Size(1339, 976);
             panel1.TabIndex = 3;
             // 
             // btnLiberarMesa
@@ -201,7 +201,7 @@
             // btnAbrirMesa
             // 
             btnAbrirMesa.Anchor = AnchorStyles.Bottom | AnchorStyles.Right;
-            btnAbrirMesa.Location = new Point(213, 289);
+            btnAbrirMesa.Location = new Point(968, 563);
             btnAbrirMesa.Margin = new Padding(4, 5, 4, 5);
             btnAbrirMesa.Name = "btnAbrirMesa";
             btnAbrirMesa.Size = new Size(173, 38);
@@ -214,7 +214,7 @@
             // 
             lblMesaSel.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             lblMesaSel.AutoSize = true;
-            lblMesaSel.Location = new Point(267, 42);
+            lblMesaSel.Location = new Point(1022, 42);
             lblMesaSel.Margin = new Padding(4, 0, 4, 0);
             lblMesaSel.Name = "lblMesaSel";
             lblMesaSel.Size = new Size(188, 25);
@@ -226,7 +226,7 @@
             cboMesero.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             cboMesero.DropDownStyle = ComboBoxStyle.DropDownList;
             cboMesero.FormattingEnabled = true;
-            cboMesero.Location = new Point(213, 72);
+            cboMesero.Location = new Point(968, 72);
             cboMesero.Margin = new Padding(4, 5, 4, 5);
             cboMesero.Name = "cboMesero";
             cboMesero.Size = new Size(171, 33);
@@ -249,11 +249,12 @@
             dgvMesas.RowHeadersVisible = false;
             dgvMesas.RowHeadersWidth = 62;
             dgvMesas.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
-            dgvMesas.Size = new Size(543, 702);
+            dgvMesas.Size = new Size(543, 976);
             dgvMesas.TabIndex = 0;
             // 
             // tabPedido
             // 
+            tabPedido.Controls.Add(dgvReceta);
             tabPedido.Controls.Add(btnQuitarLinea);
             tabPedido.Controls.Add(label1);
             tabPedido.Controls.Add(txtBuscarPlatillo);
@@ -261,22 +262,38 @@
             tabPedido.Controls.Add(lblTotales);
             tabPedido.Controls.Add(dgvPedido);
             tabPedido.Controls.Add(btnAgregarLinea);
-            tabPedido.Controls.Add(txtPesoGr);
-            tabPedido.Controls.Add(chkSimularBascula);
             tabPedido.Controls.Add(lbPlatillos);
             tabPedido.Location = new Point(4, 34);
             tabPedido.Margin = new Padding(4, 5, 4, 5);
             tabPedido.Name = "tabPedido";
             tabPedido.Padding = new Padding(4, 5, 4, 5);
-            tabPedido.Size = new Size(1135, 712);
+            tabPedido.Size = new Size(1890, 986);
             tabPedido.TabIndex = 1;
             tabPedido.Text = "tabPedido";
             tabPedido.UseVisualStyleBackColor = true;
             // 
+            // dgvReceta
+            // 
+            dgvReceta.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            dgvReceta.Location = new Point(1011, 614);
+            dgvReceta.Name = "dgvReceta";
+            dgvReceta.RowHeadersWidth = 62;
+            dgvReceta.Size = new Size(871, 362);
+            dgvReceta.TabIndex = 17;
+            // 
+            // btnQuitarLinea
+            // 
+            btnQuitarLinea.Location = new Point(587, 572);
+            btnQuitarLinea.Name = "btnQuitarLinea";
+            btnQuitarLinea.Size = new Size(169, 34);
+            btnQuitarLinea.TabIndex = 16;
+            btnQuitarLinea.Text = "Eliminar platillo";
+            btnQuitarLinea.UseVisualStyleBackColor = true;
+            // 
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new Point(429, 12);
+            label1.Location = new Point(4, 5);
             label1.Margin = new Padding(4, 0, 4, 0);
             label1.Name = "label1";
             label1.Size = new Size(75, 25);
@@ -285,16 +302,16 @@
             // 
             // txtBuscarPlatillo
             // 
-            txtBuscarPlatillo.Location = new Point(429, 42);
+            txtBuscarPlatillo.Location = new Point(4, 30);
             txtBuscarPlatillo.Margin = new Padding(4, 5, 4, 5);
             txtBuscarPlatillo.Name = "txtBuscarPlatillo";
-            txtBuscarPlatillo.Size = new Size(370, 31);
+            txtBuscarPlatillo.Size = new Size(398, 31);
             txtBuscarPlatillo.TabIndex = 14;
             txtBuscarPlatillo.TextChanged += txtBuscarPlatillo_TextChanged;
             // 
             // btnIrCobro
             // 
-            btnIrCobro.Location = new Point(960, 163);
+            btnIrCobro.Location = new Point(1564, 126);
             btnIrCobro.Margin = new Padding(4, 5, 4, 5);
             btnIrCobro.Name = "btnIrCobro";
             btnIrCobro.Size = new Size(107, 38);
@@ -306,12 +323,12 @@
             // lblTotales
             // 
             lblTotales.AutoSize = true;
-            lblTotales.Location = new Point(989, 102);
+            lblTotales.Location = new Point(1479, 84);
             lblTotales.Margin = new Padding(4, 0, 4, 0);
             lblTotales.Name = "lblTotales";
-            lblTotales.Size = new Size(59, 25);
+            lblTotales.Size = new Size(127, 25);
             lblTotales.TabIndex = 12;
-            lblTotales.Text = "label1";
+            lblTotales.Text = "                       ";
             // 
             // dgvPedido
             // 
@@ -319,57 +336,34 @@
             dgvPedido.AllowUserToDeleteRows = false;
             dgvPedido.AllowUserToResizeColumns = false;
             dgvPedido.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            dgvPedido.Dock = DockStyle.Bottom;
-            dgvPedido.Location = new Point(402, 340);
+            dgvPedido.Location = new Point(402, 614);
             dgvPedido.Margin = new Padding(4, 5, 4, 5);
             dgvPedido.Name = "dgvPedido";
             dgvPedido.RowHeadersVisible = false;
             dgvPedido.RowHeadersWidth = 62;
-            dgvPedido.Size = new Size(729, 367);
+            dgvPedido.Size = new Size(602, 362);
             dgvPedido.TabIndex = 11;
             // 
             // btnAgregarLinea
             // 
-            btnAgregarLinea.Location = new Point(494, 187);
+            btnAgregarLinea.Location = new Point(410, 71);
             btnAgregarLinea.Margin = new Padding(4, 5, 4, 5);
             btnAgregarLinea.Name = "btnAgregarLinea";
             btnAgregarLinea.Size = new Size(156, 38);
             btnAgregarLinea.TabIndex = 10;
-            btnAgregarLinea.Text = "Agregar";
+            btnAgregarLinea.Text = "Agregar Platillo";
             btnAgregarLinea.UseVisualStyleBackColor = true;
             btnAgregarLinea.Click += btnAgregarLinea_Click;
             // 
-            // txtPesoGr
-            // 
-            txtPesoGr.Location = new Point(494, 97);
-            txtPesoGr.Margin = new Padding(4, 5, 4, 5);
-            txtPesoGr.Name = "txtPesoGr";
-            txtPesoGr.ReadOnly = true;
-            txtPesoGr.Size = new Size(154, 31);
-            txtPesoGr.TabIndex = 9;
-            txtPesoGr.TextAlign = HorizontalAlignment.Right;
-            // 
-            // chkSimularBascula
-            // 
-            chkSimularBascula.AutoSize = true;
-            chkSimularBascula.Location = new Point(494, 145);
-            chkSimularBascula.Margin = new Padding(4, 5, 4, 5);
-            chkSimularBascula.Name = "chkSimularBascula";
-            chkSimularBascula.Size = new Size(160, 29);
-            chkSimularBascula.TabIndex = 8;
-            chkSimularBascula.Text = "Simular Bascula";
-            chkSimularBascula.UseVisualStyleBackColor = true;
-            // 
             // lbPlatillos
             // 
-            lbPlatillos.Dock = DockStyle.Left;
             lbPlatillos.FormattingEnabled = true;
             lbPlatillos.IntegralHeight = false;
             lbPlatillos.ItemHeight = 25;
-            lbPlatillos.Location = new Point(4, 5);
+            lbPlatillos.Location = new Point(4, 71);
             lbPlatillos.Margin = new Padding(4, 5, 4, 5);
             lbPlatillos.Name = "lbPlatillos";
-            lbPlatillos.Size = new Size(398, 702);
+            lbPlatillos.Size = new Size(398, 910);
             lbPlatillos.TabIndex = 7;
             // 
             // tabCobro
@@ -388,7 +382,7 @@
             tabCobro.Location = new Point(4, 34);
             tabCobro.Margin = new Padding(4, 5, 4, 5);
             tabCobro.Name = "tabCobro";
-            tabCobro.Size = new Size(1135, 712);
+            tabCobro.Size = new Size(1890, 986);
             tabCobro.TabIndex = 2;
             tabCobro.Text = "tabCobro";
             tabCobro.UseVisualStyleBackColor = true;
@@ -523,7 +517,7 @@
             tabInventario.Location = new Point(4, 34);
             tabInventario.Margin = new Padding(4, 5, 4, 5);
             tabInventario.Name = "tabInventario";
-            tabInventario.Size = new Size(1135, 712);
+            tabInventario.Size = new Size(1890, 986);
             tabInventario.TabIndex = 4;
             tabInventario.Text = "tabInventario";
             tabInventario.UseVisualStyleBackColor = true;
@@ -575,12 +569,12 @@
             dgvInvCaptura.AllowUserToDeleteRows = false;
             dgvInvCaptura.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             dgvInvCaptura.Dock = DockStyle.Bottom;
-            dgvInvCaptura.Location = new Point(370, 345);
+            dgvInvCaptura.Location = new Point(370, 619);
             dgvInvCaptura.Margin = new Padding(4, 5, 4, 5);
             dgvInvCaptura.Name = "dgvInvCaptura";
             dgvInvCaptura.RowHeadersVisible = false;
             dgvInvCaptura.RowHeadersWidth = 62;
-            dgvInvCaptura.Size = new Size(765, 367);
+            dgvInvCaptura.Size = new Size(1520, 367);
             dgvInvCaptura.TabIndex = 8;
             dgvInvCaptura.CellContentClick += dgvInvCaptura_CellContentClick;
             // 
@@ -654,7 +648,7 @@
             lbInvArticulos.Location = new Point(0, 0);
             lbInvArticulos.Margin = new Padding(4, 5, 4, 5);
             lbInvArticulos.Name = "lbInvArticulos";
-            lbInvArticulos.Size = new Size(370, 712);
+            lbInvArticulos.Size = new Size(370, 986);
             lbInvArticulos.TabIndex = 1;
             lbInvArticulos.SelectedIndexChanged += lbInvArticulos_SelectedIndexChanged;
             // 
@@ -684,7 +678,7 @@
             tabConfig.Location = new Point(4, 34);
             tabConfig.Margin = new Padding(4, 5, 4, 5);
             tabConfig.Name = "tabConfig";
-            tabConfig.Size = new Size(1135, 712);
+            tabConfig.Size = new Size(1890, 986);
             tabConfig.TabIndex = 3;
             tabConfig.Text = "tabConfig";
             tabConfig.UseVisualStyleBackColor = true;
@@ -814,20 +808,11 @@
             txtRutaSae.Size = new Size(624, 31);
             txtRutaSae.TabIndex = 2;
             // 
-            // btnQuitarLinea
-            // 
-            btnQuitarLinea.Location = new Point(958, 298);
-            btnQuitarLinea.Name = "btnQuitarLinea";
-            btnQuitarLinea.Size = new Size(169, 34);
-            btnQuitarLinea.TabIndex = 16;
-            btnQuitarLinea.Text = "Eliminar platillo";
-            btnQuitarLinea.UseVisualStyleBackColor = true;
-            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(10F, 25F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(1143, 750);
+            ClientSize = new Size(1898, 1024);
             Controls.Add(tabMain);
             Margin = new Padding(4, 5, 4, 5);
             Name = "Form1";
@@ -845,6 +830,7 @@
             ((System.ComponentModel.ISupportInitialize)dgvMesas).EndInit();
             tabPedido.ResumeLayout(false);
             tabPedido.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)dgvReceta).EndInit();
             ((System.ComponentModel.ISupportInitialize)dgvPedido).EndInit();
             tabCobro.ResumeLayout(false);
             tabCobro.PerformLayout();
@@ -874,8 +860,6 @@
         private CheckBox chkFacturarAhora;
         private Label lblResumenCobro;
         private Button btnConfirmarCobro;
-        private TextBox txtPesoGr;
-        private CheckBox chkSimularBascula;
         private ListBox lbPlatillos;
         private Button btnIrCobro;
         private Label lblTotales;
@@ -921,5 +905,6 @@
         private Button btnLiberarMesa;
         private Label label1;
         private Button btnQuitarLinea;
+        private DataGridView dgvReceta;
     }
 }

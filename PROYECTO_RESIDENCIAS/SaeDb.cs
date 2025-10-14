@@ -1,8 +1,5 @@
 ﻿using FirebirdSql.Data.FirebirdClient;
-using System;
-using System.Data.Common;
 using System.Text.RegularExpressions;
-using System.Collections.Generic;
 
 
 namespace PROYECTO_RESIDENCIAS
@@ -41,7 +38,7 @@ namespace PROYECTO_RESIDENCIAS
         /// <summary>
         /// Prueba rápida; úsala si necesitas validar en otra parte.
         /// </summary>
-        
+
 
 
         public static FbConnection CreateConnection(
@@ -69,7 +66,7 @@ namespace PROYECTO_RESIDENCIAS
             return new FbConnection(cs.ToString());
         }
 
-        
+
         //----------------------------------------------------------------------------------------------el original
         public static void TestConnection(FbConnection conn)
         {
@@ -191,7 +188,7 @@ namespace PROYECTO_RESIDENCIAS
             string tPXP = GetTableName(conn, "PRECIO_X_PROD");
             string tMULT = GetTableName(conn, "MULT");
 
-            
+
             // WHERE dinámico (ahora case-insensitive)
             var where = "WHERE I.STATUS = 'A' ";
             if (!string.IsNullOrWhiteSpace(clavePrefix))
@@ -323,6 +320,63 @@ ORDER BY I.DESCR";
             var o = cmd.ExecuteScalar();
             return o?.ToString()?.Trim() ?? clave;
         }
+
+
+
+
+        public class RecetaItemDto
+        {
+            public string Clave { get; set; }          // CVE_PROD
+            public string Descripcion { get; set; }    // INVE.DESCR
+            public string Unidad { get; set; }         // INVE.UNI_MED
+            public decimal Porcentaje { get; set; }    // KITS.PORCEN
+            public decimal Cantidad { get; set; }      // KITS.CANTIDAD (por 1 platillo)
+            public decimal Existencia { get; set; }    // MULT.EXIST (almacén seleccionado)
+        }
+
+        public static List<RecetaItemDto> ListarReceta(string cvePlatillo, int? almacen = 1)
+        {
+            using var conn = GetOpenConnection();
+            string tKITS = GetTableName(conn, "KITS");     // KITS01..KITS99
+            string tINVE = GetTableName(conn, "INVE");
+            string tMULT = GetTableName(conn, "MULT");
+
+            var sql = $@"
+SELECT
+    K.CVE_PROD,
+    I.DESCR,
+    I.UNI_MED,
+    COALESCE(K.PORCEN, 0),
+    COALESCE(K.CANTIDAD, 0),
+    COALESCE(M.EXIST, I.EXIST)
+FROM {tKITS} K
+LEFT JOIN {tINVE} I  ON I.CVE_ART = K.CVE_PROD
+LEFT JOIN {tMULT} M  ON M.CVE_ART = K.CVE_PROD
+                    AND (@ALM IS NULL OR M.CVE_ALM = @ALM)
+WHERE K.CVE_ART = @C
+ORDER BY K.CVE_PROD";
+
+            using var cmd = new FbCommand(sql, conn);
+            cmd.Parameters.Add("@C", FbDbType.VarChar, 30).Value = cvePlatillo;
+            cmd.Parameters.Add("@ALM", FbDbType.Integer).Value = (object?)almacen ?? DBNull.Value;
+
+            var list = new List<RecetaItemDto>();
+            using var rd = cmd.ExecuteReader();
+            while (rd.Read())
+            {
+                list.Add(new RecetaItemDto
+                {
+                    Clave = rd.IsDBNull(0) ? "" : rd.GetString(0).Trim(),
+                    Descripcion = rd.IsDBNull(1) ? "" : rd.GetString(1).Trim(),
+                    Unidad = rd.IsDBNull(2) ? "" : rd.GetString(2).Trim(),
+                    Porcentaje = rd.IsDBNull(3) ? 0m : Convert.ToDecimal(rd.GetValue(3)),
+                    Cantidad = rd.IsDBNull(4) ? 0m : Convert.ToDecimal(rd.GetValue(4)),
+                    Existencia = rd.IsDBNull(5) ? 0m : Convert.ToDecimal(rd.GetValue(5))
+                });
+            }
+            return list;
+        }
+
 
     }
 }

@@ -1,6 +1,4 @@
 ﻿using FirebirdSql.Data.FirebirdClient;
-using System;
-using System.Collections.Generic;
 
 namespace PROYECTO_RESIDENCIAS
 {
@@ -338,7 +336,7 @@ namespace PROYECTO_RESIDENCIAS
             public string Obs { get; set; }
         }
 
-        
+
         public static TurnoInfo? ObtenerTurnoAbiertoInfo()
         {
             string path;

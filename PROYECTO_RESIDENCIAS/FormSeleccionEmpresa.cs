@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using FirebirdSql.Data.FirebirdClient;
 using System.Data;
-using System.IO;
-using System.Linq;
-using System.Windows.Forms;
-using FirebirdSql.Data.FirebirdClient;
 
 namespace PROYECTO_RESIDENCIAS
 {

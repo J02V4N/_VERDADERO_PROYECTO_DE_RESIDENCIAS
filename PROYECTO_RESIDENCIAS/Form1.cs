@@ -1,12 +1,7 @@
 ﻿using FirebirdSql.Data.FirebirdClient;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing.Printing;
-using System.Linq;
 using System.Text.RegularExpressions;
-using System.Windows.Forms;
-using static PROYECTO_RESIDENCIAS.SaeDb;
 
 namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 {
@@ -139,6 +134,60 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             _idPedidoActual = null;
         }
 
+
+        private void ConfigurarGridReceta()
+        {
+            dgvReceta.AutoGenerateColumns = false;
+            dgvReceta.Columns.Clear();
+
+            dgvReceta.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = "Clave",
+                HeaderText = "Insumo",
+                Width = 120,
+                ReadOnly = true
+            });
+            dgvReceta.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = "Descripcion",
+                HeaderText = "Descripción",
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+                ReadOnly = true
+            });
+            dgvReceta.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = "Unidad",
+                HeaderText = "UM",
+                Width = 60,
+                ReadOnly = true
+            });
+            dgvReceta.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = "Cantidad",
+                HeaderText = "Cant x 1",
+                Width = 80,
+                ReadOnly = true,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "N3", Alignment = DataGridViewContentAlignment.MiddleRight }
+            });
+            dgvReceta.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                DataPropertyName = "Existencia",
+                HeaderText = "Exist.",
+                Width = 80,
+                ReadOnly = true,
+                DefaultCellStyle = new DataGridViewCellStyle { Format = "N3", Alignment = DataGridViewContentAlignment.MiddleRight }
+            });
+
+            dgvReceta.AllowUserToAddRows = false;
+            dgvReceta.AllowUserToDeleteRows = false;
+            dgvReceta.MultiSelect = false;
+            dgvReceta.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+
+            dgvReceta.DataSource = _recetaActual;
+        }
+
+
+
         private void Form1_Load(object sender, EventArgs e)
         {
 
@@ -167,7 +216,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
             lbPlatillos.DoubleClick += (s, ev) => AgregarPlatilloSeleccionado();
             btnAgregarLinea.Click += (s, ev) => AgregarPlatilloSeleccionado();
-            chkSimularBascula.CheckedChanged += (s, e) => UpdateScaleTimer();
+            //chkSimularBascula.CheckedChanged += (s, e) => UpdateScaleTimer();
 
             btnIrCobro.Click += (s, ev) => IrACobro();
             chkFacturarAhora.CheckedChanged += (s, ev) => ToggleCamposFactura();
@@ -204,7 +253,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             // Eventos Inventario
             txtInvBuscar.TextChanged += (s, e) => FiltrarInvArticulos();
             btnInvRefrescar.Click += (s, e) => CargarInvArticulosDesdeSAE();
-            chkInvSimularBascula.CheckedChanged += (s, e) => UpdateScaleTimer();
+            //chkInvSimularBascula.CheckedChanged += (s, e) => UpdateScaleTimer();
             btnInvAgregar.Click += (s, e) => AgregarEntradaInventario();
             btnInvGuardarAux.Click += (s, e) => GuardarEntradasInventarioEnAux();
             btnInvLimpiar.Click += (s, e) => LimpiarCapturaInventario();
@@ -222,6 +271,9 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             dgvInvCaptura.DataSource = _invEntradas;
             dgvInvCaptura.CellEndEdit += (s, e) => RecalcularTotalesInventario();
 
+            lbPlatillos.SelectedIndexChanged += lbPlatillos_SelectedIndexChanged;
+
+
 
 
             // Doble-click en la lista de platillos => agregar
@@ -238,6 +290,10 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
             // Carga inicial del catálogo desde SAE (si quieres al abrir)
             CargarInvArticulosDesdeSAE();
+
+
+            ConfigurarGridReceta();
+
 
 
         }
@@ -664,43 +720,42 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
         }
 
         void AgregarPlatilloSeleccionado()
-{
-    if (_mesaSeleccionada == null || _idPedidoActual == null)
-    {
-        MessageBox.Show("No hay pedido abierto. Abre la mesa primero.", "Pedido", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        return;
-    }
-    if (lbPlatillos.SelectedItem is not Platillo p)
-    {
-        MessageBox.Show("Selecciona un platillo.", "Pedido", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        return;
-    }
-
-    decimal cantidad = p.RequierePeso ? 1m : 1m; // cantidad en piezas; si pesa, dejamos 1 simbólica
-    decimal? pesoGr = null;
-
-    if (p.RequierePeso)
-    {
-        if (!decimal.TryParse(txtPesoGr.Text, out var gr) || gr <= 0)
         {
-            MessageBox.Show("Captura un peso en gramos o habilita la báscula.", "Pedido", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
-        }
-        pesoGr = gr;
-    }
+            if (_mesaSeleccionada == null || _idPedidoActual == null)
+            {
+                MessageBox.Show("No hay pedido abierto. Abre la mesa primero.", "Pedido",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            if (lbPlatillos.SelectedItem is not Platillo p)
+            {
+                MessageBox.Show("Selecciona un platillo.", "Pedido",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
 
-    try
-    {
-        AuxRepo.AgregarPedidoLinea(_idPedidoActual.Value, p.Clave, esPlatillo: true, cantidad: cantidad, pesoGr: pesoGr, precioUnit: p.PrecioUnit);
-        AuxRepo.RecalcularTotalesPedido(_idPedidoActual.Value); // asegura totales coherentes
-        CargarPedidoDesdeDb(); // refresca grid
-        txtPesoGr.Clear();
-    }
-    catch (Exception ex)
-    {
-        MessageBox.Show(ex.Message, "No se pudo agregar la línea", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-    }
-}
+            // Sin peso ni báscula: una pieza por clic
+            decimal cantidad = 1m;
+            decimal? pesoGr = null;
+
+            try
+            {
+                AuxRepo.AgregarPedidoLinea(_idPedidoActual.Value,
+                                           p.Clave,
+                                           esPlatillo: true,
+                                           cantidad: cantidad,
+                                           pesoGr: pesoGr,
+                                           precioUnit: p.PrecioUnit);
+
+                AuxRepo.RecalcularTotalesPedido(_idPedidoActual.Value);
+                CargarPedidoDesdeDb();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "No se pudo agregar la línea",
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
 
 
         private void RecalcularTotales()
@@ -796,16 +851,16 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             }
 
             // Pedido
-            if (chkSimularBascula.Checked && txtPesoGr != null && !txtPesoGr.IsDisposed)
-            {
-                txtPesoGr.Text = gramos.ToString("0");
-                push(gramos);
-                if (EsLecturaEstable() && lbPlatillos.SelectedItem is Platillo p && p.RequierePeso)
-                {
-                    AgregarPlatilloSeleccionado(); // auto-agrega con el peso estable actual
-                    _ultLecturas.Clear();
-                }
-            }
+            //if (chkSimularBascula.Checked && txtPesoGr != null && !txtPesoGr.IsDisposed)
+            //{
+              //  txtPesoGr.Text = gramos.ToString("0");
+                //push(gramos);
+                //if (EsLecturaEstable() && lbPlatillos.SelectedItem is Platillo p && p.RequierePeso)
+                //{
+                  //  AgregarPlatilloSeleccionado(); // auto-agrega con el peso estable actual
+                   // _ultLecturas.Clear();
+                //}
+           // }
 
             // Inventario
             if (chkInvSimularBascula.Checked && txtInvPesoGr != null && !txtInvPesoGr.IsDisposed)
@@ -1130,33 +1185,17 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
                 if (keyData == Keys.Enter && lbPlatillos.Focused)
                 { AgregarPlatilloSeleccionado(); return true; }
 
-                // F2: actualizar peso EN MEMORIA (nota: si quieres persistir, luego agregamos un UPDATE en BD)
-                if (keyData == Keys.F2)
-                {
-                    if (decimal.TryParse(txtPesoGr.Text, out var gr) &&
-                        dgvPedido.CurrentRow?.DataBoundItem is PedidoDet d2 &&
-                        d2.RequierePeso)
-                    {
-                        d2.PesoGr = gr;
-                        dgvPedido.Refresh();
-                        RecalcularTotales();
-                    }
-                    return true;
-                }
-
-                // Delete / Ctrl+D: borrar renglón
-                // Delete / Ctrl+D: quitar línea
+                // Delete / Ctrl+D: quitar línea actual del pedido
                 if ((keyData == Keys.Delete || keyData == (Keys.Control | Keys.D)) && dgvPedido.Focused)
                 {
                     QuitarLineaSeleccionada();
                     return true;
                 }
-
             }
 
-            // SIEMPRE devolver algo: ruta por omisión
             return base.ProcessCmdKey(ref msg, keyData);
         }
+
 
 
         private void btnInvEliminar_Click(object sender, EventArgs e)
@@ -1190,10 +1229,10 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
                 cboImpresora.Items.Add(p);
         }
 
-        private void UpdateScaleTimer()
-        {
-            _timerBascula.Enabled = chkSimularBascula.Checked || chkInvSimularBascula.Checked;
-        }
+       // private void UpdateScaleTimer()
+       // {
+       //     _timerBascula.Enabled = chkSimularBascula.Checked || chkInvSimularBascula.Checked;
+        //}
 
 
         private bool ValidarCobro()
@@ -1544,6 +1583,33 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         {
             QuitarLineaSeleccionada();
         }
+
+
+        private BindingList<SaeDb.RecetaItemDto> _recetaActual = new();
+
+
+        private void lbPlatillos_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            MostrarRecetaPlatilloSeleccionado();
+        }
+
+        private void MostrarRecetaPlatilloSeleccionado()
+        {
+            if (lbPlatillos.SelectedItem is not Platillo p)
+            {
+                _recetaActual.Clear();
+                return;
+            }
+
+            // usa el almacén configurado (si ya lo tienes en un combo); por ahora 1
+            int? alm = 1;
+            if (int.TryParse(cboAlmacen.Text, out var a)) alm = a;
+
+            var receta = SaeDb.ListarReceta(p.Clave, almacen: alm);
+            _recetaActual = new BindingList<SaeDb.RecetaItemDto>(receta);
+            dgvReceta.DataSource = _recetaActual;
+        }
+
 
 
         //no se usa esto (y no borrar, si no, explota el programa)
