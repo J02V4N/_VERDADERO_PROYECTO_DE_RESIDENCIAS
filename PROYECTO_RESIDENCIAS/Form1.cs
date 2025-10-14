@@ -110,6 +110,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
         {
 
             InitializeComponent();
+
             ResetContextoMesaPedido();
             this.Load += Form1_Load; // <-- SUSCRIBIR
             // Config inicial del timer de “báscula”
@@ -220,6 +221,18 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Importe", DataPropertyName = "Importe", Width = 80, ReadOnly = true });
             dgvInvCaptura.DataSource = _invEntradas;
             dgvInvCaptura.CellEndEdit += (s, e) => RecalcularTotalesInventario();
+
+
+
+            // Doble-click en la lista de platillos => agregar
+            lbPlatillos.DoubleClick += (s, e) => AgregarPlatilloSeleccionado();
+
+            // Doble-click en la grilla del pedido => quitar línea
+            dgvPedido.CellDoubleClick += dgvPedido_CellDoubleClick;
+
+            // (si agregas el botón "Quitar" en el diseñador con Name=btnQuitarLinea)
+            btnQuitarLinea.Click += btnQuitarLinea_Click;
+
 
             // Carga inicial del catálogo desde SAE (si quieres al abrir)
             CargarInvArticulosDesdeSAE();
@@ -632,6 +645,12 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
                 // (Opcional) ir a tabPedido
                 // tabMain.SelectedTab = tabPedido;
+
+                // Ir directo a tabPedido y enfocar búsqueda para teclear rápido
+                tabMain.SelectedTab = tabPedido;
+                txtBuscarPlatillo.Focus();
+                txtBuscarPlatillo.SelectAll();
+
 
                 MessageBox.Show($"Mesa '{mesa.Nombre}' abierta.\nTurno: {r.IdTurno}\nMesaTurno: {r.IdMesaTurno}\nPedido: {r.IdPedido}",
                     "OK", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1124,32 +1143,13 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
                 }
 
                 // Delete / Ctrl+D: borrar renglón
+                // Delete / Ctrl+D: quitar línea
                 if ((keyData == Keys.Delete || keyData == (Keys.Control | Keys.D)) && dgvPedido.Focused)
                 {
-                    if (dgvPedido.CurrentRow?.DataBoundItem is PedidoDet del)
-                    {
-                        // Si ya está persistido en BD
-                        if (_idPedidoActual != null && del.IdDet.HasValue)
-                        {
-                            if (MessageBox.Show("¿Eliminar la línea seleccionada?", "Pedido",
-                                                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                            {
-                                AuxRepo.EliminarPedidoDet(del.IdDet.Value);
-                                AuxRepo.RecalcularTotalesPedido(_idPedidoActual.Value);
-                                CargarPedidoDesdeDb();
-                            }
-                        }
-                        else
-                        {
-                            // Solo en memoria (aún no persistido)
-                            _pedidoActual?.Detalles.Remove(del);
-                            if (_pedidoActual != null)
-                            { int i = 1; foreach (var x in _pedidoActual.Detalles) x.Partida = i++; }
-                            RecalcularTotales();
-                        }
-                    }
+                    QuitarLineaSeleccionada();
                     return true;
                 }
+
             }
 
             // SIEMPRE devolver algo: ruta por omisión
@@ -1504,6 +1504,49 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             var (sub, imp, tot) = AuxRepo.RecalcularTotalesPedido(_idPedidoActual.Value);
             lblTotales.Text = $"Subtotal: ${sub:N2}   IVA: ${imp:N2}   Total: ${tot:N2}";
         }
+
+
+
+
+
+        private void QuitarLineaSeleccionada()
+        {
+            if (dgvPedido.CurrentRow?.DataBoundItem is not PedidoDet sel)
+                return;
+
+            // Persistido en BD
+            if (_idPedidoActual != null && sel.IdDet.HasValue)
+            {
+                if (MessageBox.Show("¿Eliminar la línea seleccionada?",
+                                    "Pedido", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    AuxRepo.EliminarPedidoDet(sel.IdDet.Value);
+                    AuxRepo.RecalcularTotalesPedido(_idPedidoActual.Value);
+                    CargarPedidoDesdeDb();
+                }
+                return;
+            }
+
+            // Solo en memoria
+            if (_pedidoActual?.Detalles != null)
+            {
+                _pedidoActual.Detalles.Remove(sel);
+                int i = 1; foreach (var x in _pedidoActual.Detalles) x.Partida = i++;
+                RecalcularTotales();
+            }
+        }
+
+
+        private void dgvPedido_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0) QuitarLineaSeleccionada();
+        }
+
+        private void btnQuitarLinea_Click(object sender, EventArgs e)
+        {
+            QuitarLineaSeleccionada();
+        }
+
 
         //no se usa esto (y no borrar, si no, explota el programa)
 

@@ -90,6 +90,7 @@
             btnPruebaSae = new Button();
             txtRutaAux = new TextBox();
             txtRutaSae = new TextBox();
+            btnQuitarLinea = new Button();
             tabMain.SuspendLayout();
             tabMesas.SuspendLayout();
             statusMain.SuspendLayout();
@@ -253,6 +254,7 @@
             // 
             // tabPedido
             // 
+            tabPedido.Controls.Add(btnQuitarLinea);
             tabPedido.Controls.Add(label1);
             tabPedido.Controls.Add(txtBuscarPlatillo);
             tabPedido.Controls.Add(btnIrCobro);
@@ -812,6 +814,15 @@
             txtRutaSae.Size = new Size(624, 31);
             txtRutaSae.TabIndex = 2;
             // 
+            // btnQuitarLinea
+            // 
+            btnQuitarLinea.Location = new Point(958, 298);
+            btnQuitarLinea.Name = "btnQuitarLinea";
+            btnQuitarLinea.Size = new Size(169, 34);
+            btnQuitarLinea.TabIndex = 16;
+            btnQuitarLinea.Text = "Eliminar platillo";
+            btnQuitarLinea.UseVisualStyleBackColor = true;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(10F, 25F);
@@ -909,5 +920,6 @@
         private Button btnCfgMeseros;
         private Button btnLiberarMesa;
         private Label label1;
+        private Button btnQuitarLinea;
     }
 }
