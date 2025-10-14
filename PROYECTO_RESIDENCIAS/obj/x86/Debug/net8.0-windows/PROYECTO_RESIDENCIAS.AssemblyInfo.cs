@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PROYECTO_RESIDENCIAS")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+c9514aa0dcad50f49727ada6816f9bbf77d7ab42")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2846fe062e307b7aa8b383c05fc9333b4e05041f")]
 [assembly: System.Reflection.AssemblyProductAttribute("PROYECTO_RESIDENCIAS")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PROYECTO_RESIDENCIAS")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -225,7 +225,9 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
 
             // Doble-click en la lista de platillos => agregar
-            lbPlatillos.DoubleClick += (s, e) => AgregarPlatilloSeleccionado();
+            //lbPlatillos.DoubleClick += (s, e) => AgregarPlatilloSeleccionado();
+
+
 
             // Doble-click en la grilla del pedido => quitar línea
             dgvPedido.CellDoubleClick += dgvPedido_CellDoubleClick;
@@ -1511,30 +1513,26 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
 
         private void QuitarLineaSeleccionada()
         {
-            if (dgvPedido.CurrentRow?.DataBoundItem is not PedidoDet sel)
-                return;
+            if (dgvPedido.CurrentRow?.DataBoundItem is not PedidoDet sel) return;
 
             // Persistido en BD
             if (_idPedidoActual != null && sel.IdDet.HasValue)
             {
-                if (MessageBox.Show("¿Eliminar la línea seleccionada?",
-                                    "Pedido", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                {
-                    AuxRepo.EliminarPedidoDet(sel.IdDet.Value);
-                    AuxRepo.RecalcularTotalesPedido(_idPedidoActual.Value);
-                    CargarPedidoDesdeDb();
-                }
+                AuxRepo.EliminarPedidoDet(sel.IdDet.Value);
+                AuxRepo.RecalcularTotalesPedido(_idPedidoActual.Value);
+                CargarPedidoDesdeDb();
                 return;
             }
 
             // Solo en memoria
-            if (_pedidoActual?.Detalles != null)
+            _pedidoActual?.Detalles.Remove(sel);
+            if (_pedidoActual != null)
             {
-                _pedidoActual.Detalles.Remove(sel);
                 int i = 1; foreach (var x in _pedidoActual.Detalles) x.Partida = i++;
-                RecalcularTotales();
             }
+            RecalcularTotales();
         }
+
 
 
         private void dgvPedido_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
