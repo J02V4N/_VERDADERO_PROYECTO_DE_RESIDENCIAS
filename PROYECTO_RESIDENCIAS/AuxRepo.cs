@@ -660,6 +660,82 @@ namespace PROYECTO_RESIDENCIAS
             return (sub, imp, tot);
         }
 
+        public class CobroResult
+        {
+            public decimal Total { get; set; }
+            public decimal Pagado { get; set; }
+            public decimal Cambio { get; set; }
+            public int IdMesa { get; set; }
+            public int IdMesaTurno { get; set; }
+        }
+
+        public static CobroResult CobrarPedido(int idPedido, decimal efectivo, decimal tarjeta, string referenciaTarjeta = null)
+        {
+            string path;
+            using var con = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
+            using var tx = con.BeginTransaction();
+
+            // 1) Traer totales del pedido y mesa/mesa_turno
+            decimal total;
+            int idMesaTurno, idMesa;
+            using (var cmd = new FbCommand(@"
+        SELECT P.TOTAL, MT.ID_MESA_TURNO, MT.ID_MESA, P.ESTADO
+        FROM PEDIDOS P
+        JOIN MESA_TURNO MT ON MT.ID_MESA_TURNO = P.ID_MESA_TURNO
+        WHERE P.ID_PEDIDO = @P", con, tx))
+            {
+                cmd.Parameters.Add("@P", FbDbType.Integer).Value = idPedido;
+                using var rd = cmd.ExecuteReader();
+                if (!rd.Read()) throw new InvalidOperationException("Pedido no encontrado.");
+                var estado = rd["ESTADO"]?.ToString();
+                if (!string.Equals(estado, "ABIERTO", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException("El pedido no está ABIERTO.");
+
+                total = Convert.ToDecimal(rd["TOTAL"]);
+                idMesaTurno = Convert.ToInt32(rd["ID_MESA_TURNO"]);
+                idMesa = Convert.ToInt32(rd["ID_MESA"]);
+            }
+
+            // 2) Validar pago
+            var pagado = Math.Round(efectivo + tarjeta, 2);
+            if (pagado < total)
+                throw new InvalidOperationException($"Pago insuficiente. Total {total:N2}, pagado {pagado:N2}.");
+
+            var cambio = Math.Round(pagado - total, 2);
+
+            // 3) Marcar pedido COBRADO
+            using (var up = new FbCommand("UPDATE PEDIDOS SET ESTADO='COBRADO' WHERE ID_PEDIDO=@P", con, tx))
+            {
+                up.Parameters.Add("@P", FbDbType.Integer).Value = idPedido;
+                up.ExecuteNonQuery();
+            }
+
+            // (Opcional) guardar corte simple del tipo de pago en CONFIG_LOG o similar.
+            // Si quieres desglose por formas de pago, después añadimos tabla PAGOS.
+
+            // 4) Poner mesa/mesa_turno en EN_CUENTA (esperando entrega/cierre de mesa)
+            using (var upMt = new FbCommand("UPDATE MESA_TURNO SET ESTADO='EN_CUENTA' WHERE ID_MESA_TURNO=@MT", con, tx))
+            {
+                upMt.Parameters.Add("@MT", FbDbType.Integer).Value = idMesaTurno;
+                upMt.ExecuteNonQuery();
+            }
+            using (var upM = new FbCommand("UPDATE MESAS SET ESTADO='EN_CUENTA' WHERE ID_MESA=@M", con, tx))
+            {
+                upM.Parameters.Add("@M", FbDbType.Integer).Value = idMesa;
+                upM.ExecuteNonQuery();
+            }
+
+            tx.Commit();
+
+            return new CobroResult
+            {
+                Total = total,
+                Pagado = pagado,
+                Cambio = cambio,
+                IdMesa = idMesa,
+                IdMesaTurno = idMesaTurno
+            };
+        }
 
 
     }

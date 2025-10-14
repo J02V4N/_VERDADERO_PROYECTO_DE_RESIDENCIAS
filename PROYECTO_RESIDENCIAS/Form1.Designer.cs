@@ -389,7 +389,7 @@
             // 
             // btnReimprimir
             // 
-            btnReimprimir.Location = new Point(936, 652);
+            btnReimprimir.Location = new Point(1268, 694);
             btnReimprimir.Margin = new Padding(4, 5, 4, 5);
             btnReimprimir.Name = "btnReimprimir";
             btnReimprimir.Size = new Size(184, 38);
@@ -449,7 +449,7 @@
             // 
             // btnConfirmarCobro
             // 
-            btnConfirmarCobro.Location = new Point(936, 590);
+            btnConfirmarCobro.Location = new Point(1268, 627);
             btnConfirmarCobro.Margin = new Padding(4, 5, 4, 5);
             btnConfirmarCobro.Name = "btnConfirmarCobro";
             btnConfirmarCobro.Size = new Size(184, 38);
