@@ -522,6 +522,145 @@ namespace PROYECTO_RESIDENCIAS
             tx.Commit();
         }
 
+        public class PedidoDetDto
+        {
+            public int IdDet { get; set; }
+            public string ClaveArticulo { get; set; }
+            public bool EsPlatillo { get; set; }
+            public decimal Cantidad { get; set; }
+            public decimal? PesoGr { get; set; }
+            public decimal PrecioUnit { get; set; }
+            public decimal Importe { get; set; }
+        }
+
+        /// <summary>
+        /// Devuelve el pedido ABIERTO de la mesa actual (en el turno abierto de HOY).
+        /// </summary>
+        public static (int? IdPedido, int? IdMesaTurno) ObtenerPedidoAbiertoPorMesa(int idMesa)
+        {
+            string path;
+            using var con = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
+            using var cmd = new FbCommand(@"
+        SELECT P.ID_PEDIDO, MT.ID_MESA_TURNO
+        FROM TURNOS T
+        JOIN MESA_TURNO MT ON MT.ID_TURNO = T.ID_TURNO
+        JOIN PEDIDOS P     ON P.ID_MESA_TURNO = MT.ID_MESA_TURNO
+        WHERE T.FECHA = CURRENT_DATE
+          AND T.HORA_FIN IS NULL
+          AND MT.ID_MESA = @M
+          AND P.ESTADO = 'ABIERTO'
+        ORDER BY P.ID_PEDIDO DESC
+        ROWS 1", con);
+            cmd.Parameters.Add("@M", FbDbType.Integer).Value = idMesa;
+            using var rd = cmd.ExecuteReader();
+            if (rd.Read())
+                return (Convert.ToInt32(rd[0]), Convert.ToInt32(rd[1]));
+            return (null, null);
+        }
+
+        /// <summary>
+        /// Inserta una línea en PEDIDO_DET y regresa el ID generado.
+        /// </summary>
+        public static int AgregarPedidoLinea(int idPedido, string cveArt, bool esPlatillo, decimal cantidad, decimal? pesoGr, decimal precioUnit)
+        {
+            string path;
+            using var con = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
+            using var tx = con.BeginTransaction();
+
+            // Importe: si hay peso, se cobra (peso(kg) * precioUnit); si no, cantidad * precioUnit
+            decimal importe = (pesoGr.HasValue && pesoGr.Value > 0m)
+                ? Math.Round((pesoGr.Value / 1000m) * precioUnit, 2)
+                : Math.Round(cantidad * precioUnit, 2);
+
+            using var cmd = new FbCommand(@"
+        INSERT INTO PEDIDO_DET
+            (ID_PEDIDO, CLAVE_ARTICULO_SAE, ES_PLATILLO, CANTIDAD, PESO_GR, PRECIO_UNIT, IMPORTE)
+        VALUES
+            (@P, @C, @E, @Q, @G, @PU, @IMP)
+        RETURNING ID_PEDIDO_DET", con, tx);
+
+            cmd.Parameters.Add("@P", FbDbType.Integer).Value = idPedido;
+            cmd.Parameters.Add("@C", FbDbType.VarChar, 30).Value = cveArt;
+            cmd.Parameters.Add("@E", FbDbType.SmallInt).Value = esPlatillo ? 1 : 0;
+            cmd.Parameters.Add("@Q", FbDbType.Decimal).Value = cantidad;
+            cmd.Parameters.Add("@G", FbDbType.Decimal).Value = (object?)pesoGr ?? DBNull.Value;
+            cmd.Parameters.Add("@PU", FbDbType.Decimal).Value = precioUnit;
+            cmd.Parameters.Add("@IMP", FbDbType.Decimal).Value = importe;
+
+            int idDet = Convert.ToInt32(cmd.ExecuteScalar());
+
+            tx.Commit();
+            return idDet;
+        }
+
+        /// <summary>
+        /// Lista las líneas de un pedido (tal cual están en BD).
+        /// </summary>
+        public static List<PedidoDetDto> ListarPedidoDet(int idPedido)
+        {
+            var list = new List<PedidoDetDto>();
+            string path;
+            using var con = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
+            using var cmd = new FbCommand(@"
+        SELECT ID_PEDIDO_DET, CLAVE_ARTICULO_SAE, ES_PLATILLO, CANTIDAD, PESO_GR, PRECIO_UNIT, IMPORTE
+        FROM PEDIDO_DET
+        WHERE ID_PEDIDO = @P
+        ORDER BY ID_PEDIDO_DET", con);
+            cmd.Parameters.Add("@P", FbDbType.Integer).Value = idPedido;
+
+            using var rd = cmd.ExecuteReader();
+            while (rd.Read())
+            {
+                list.Add(new PedidoDetDto
+                {
+                    IdDet = Convert.ToInt32(rd[0]),
+                    ClaveArticulo = rd[1]?.ToString(),
+                    EsPlatillo = Convert.ToInt16(rd[2]) == 1,
+                    Cantidad = rd[3] == DBNull.Value ? 0m : Convert.ToDecimal(rd[3]),
+                    PesoGr = rd[4] == DBNull.Value ? (decimal?)null : Convert.ToDecimal(rd[4]),
+                    PrecioUnit = rd[5] == DBNull.Value ? 0m : Convert.ToDecimal(rd[5]),
+                    Importe = rd[6] == DBNull.Value ? 0m : Convert.ToDecimal(rd[6])
+                });
+            }
+            return list;
+        }
+
+        public static void EliminarPedidoDet(int idPedidoDet)
+        {
+            string path;
+            using var con = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
+            using var cmd = new FbCommand("DELETE FROM PEDIDO_DET WHERE ID_PEDIDO_DET=@ID", con);
+            cmd.Parameters.Add("@ID", FbDbType.Integer).Value = idPedidoDet;
+            cmd.ExecuteNonQuery();
+        }
+
+        /// <summary>
+        /// Recalcula y actualiza SUBTOTAL/IMPUESTO/TOTAL de PEDIDOS. Devuelve los totales.
+        /// </summary>
+        public static (decimal Subtotal, decimal Impuesto, decimal Total) RecalcularTotalesPedido(int idPedido, decimal tasaIva = 0.16m)
+        {
+            string path;
+            using var con = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
+            decimal sub;
+            using (var cmdS = new FbCommand("SELECT COALESCE(SUM(IMPORTE),0) FROM PEDIDO_DET WHERE ID_PEDIDO=@P", con))
+            {
+                cmdS.Parameters.Add("@P", FbDbType.Integer).Value = idPedido;
+                sub = Convert.ToDecimal(cmdS.ExecuteScalar());
+            }
+            var imp = Math.Round(sub * tasaIva, 2);
+            var tot = Math.Round(sub + imp, 2);
+
+            using (var cmdU = new FbCommand("UPDATE PEDIDOS SET SUBTOTAL=@S, IMPUESTO=@I, TOTAL=@T WHERE ID_PEDIDO=@P", con))
+            {
+                cmdU.Parameters.Add("@S", FbDbType.Decimal).Value = sub;
+                cmdU.Parameters.Add("@I", FbDbType.Decimal).Value = imp;
+                cmdU.Parameters.Add("@T", FbDbType.Decimal).Value = tot;
+                cmdU.Parameters.Add("@P", FbDbType.Integer).Value = idPedido;
+                cmdU.ExecuteNonQuery();
+            }
+
+            return (sub, imp, tot);
+        }
 
     }
 }

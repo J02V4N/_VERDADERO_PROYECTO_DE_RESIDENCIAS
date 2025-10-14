@@ -62,6 +62,9 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             public decimal Cantidad { get; set; }   // piezas/porciones si !RequierePeso; 1 si pesa
             public decimal? PesoGr { get; set; }    // gramos si RequierePeso
             public decimal PrecioUnit { get; set; } // $/pieza o $/kg
+
+            public int? IdDet { get; set; }   // id de PEDIDO_DET en BD
+
             public bool RequierePeso { get; set; }
             public decimal Importe
             {
@@ -551,25 +554,39 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
         }
 
 
-        private void SeleccionarMesa()
+        void SeleccionarMesa()
         {
             if (dgvMesas.CurrentRow?.DataBoundItem is Mesa m)
             {
                 _mesaSeleccionada = m;
                 lblMesaSel.Text = $"Seleccionada: {m.Nombre} ({m.Estado})";
-                if (_pedidosAbiertos.TryGetValue(m.Id, out var ped))
+
+                if (m.Estado == MesaEstado.LIBRE)
                 {
-                    _pedidoActual = ped;
-                    dgvPedido.DataSource = ped.Detalles;
-                    ActualizarTotales();
+                    _idMesaTurnoActual = null;
+                    _idPedidoActual = null;
+                    _pedidoActual = null;
+                    dgvPedido.DataSource = null;
+                    lblTotales.Text = "Subtotal: $0.00   IVA: $0.00   Total: $0.00";
+                    return;
                 }
+
+                // Mesa no libre: intenta localizar el pedido abierto de HOY
+                var (idPed, idMT) = AuxRepo.ObtenerPedidoAbiertoPorMesa(m.Id);
+                _idMesaTurnoActual = idMT;
+                _idPedidoActual = idPed;
+
+                if (_idPedidoActual != null)
+                    CargarPedidoDesdeDb();
                 else
                 {
+                    _pedidoActual = null;
                     dgvPedido.DataSource = null;
                     lblTotales.Text = "Subtotal: $0.00   IVA: $0.00   Total: $0.00";
                 }
             }
         }
+
 
         private void AbrirAtenderMesa()
         {
@@ -625,39 +642,55 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             }
         }
 
-        private void AgregarPlatilloSeleccionado()
+        void AgregarPlatilloSeleccionado()
+{
+    if (_mesaSeleccionada == null || _idPedidoActual == null)
+    {
+        MessageBox.Show("No hay pedido abierto. Abre la mesa primero.", "Pedido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        return;
+    }
+    if (lbPlatillos.SelectedItem is not Platillo p)
+    {
+        MessageBox.Show("Selecciona un platillo.", "Pedido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        return;
+    }
+
+    decimal cantidad = p.RequierePeso ? 1m : 1m; // cantidad en piezas; si pesa, dejamos 1 simbólica
+    decimal? pesoGr = null;
+
+    if (p.RequierePeso)
+    {
+        if (!decimal.TryParse(txtPesoGr.Text, out var gr) || gr <= 0)
         {
-            if (_pedidoActual == null) return;
-            if (lbPlatillos.SelectedItem is Platillo p)
-            {
-                var det = new PedidoDet
-                {
-                    Partida = _pedidoActual.Detalles.Count + 1,
-                    Clave = p.Clave,
-                    Nombre = p.Nombre,
-                    RequierePeso = p.RequierePeso,
-                    Cantidad = p.RequierePeso ? 1 : 1, // si pesa, manejamos PesoGr; Cantidad=1 simbólica
-                    PrecioUnit = p.PrecioUnit
-                };
-
-                if (p.RequierePeso)
-                {
-                    // tomar lo que esté en txtPesoGr (simulado o real)
-                    if (decimal.TryParse(txtPesoGr.Text, out var gr) && gr > 0)
-                        det.PesoGr = gr;
-                    else
-                        det.PesoGr = 150m; // default si no hay lectura (ej. 150g)
-                }
-
-                _pedidoActual.Detalles.Add(det);
-                RecalcularTotales();
-            }
+            MessageBox.Show("Captura un peso en gramos o habilita la báscula.", "Pedido", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
         }
+        pesoGr = gr;
+    }
+
+    try
+    {
+        AuxRepo.AgregarPedidoLinea(_idPedidoActual.Value, p.Clave, esPlatillo: true, cantidad: cantidad, pesoGr: pesoGr, precioUnit: p.PrecioUnit);
+        AuxRepo.RecalcularTotalesPedido(_idPedidoActual.Value); // asegura totales coherentes
+        CargarPedidoDesdeDb(); // refresca grid
+        txtPesoGr.Clear();
+    }
+    catch (Exception ex)
+    {
+        MessageBox.Show(ex.Message, "No se pudo agregar la línea", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+    }
+}
+
 
         private void RecalcularTotales()
         {
             // Normaliza celdas editables (Cant / Peso) y recalcula
             dgvPedido.EndEdit();
+            if (_idPedidoActual != null)
+            {
+                var (sub, imp, tot) = AuxRepo.RecalcularTotalesPedido(_idPedidoActual.Value);
+                lblTotales.Text = $"Subtotal: ${sub:N2}   IVA: ${imp:N2}   Total: ${tot:N2}";
+            }
             ActualizarTotales();
         }
 
@@ -1060,40 +1093,69 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         {
             if (tabMain.SelectedTab == tabPedido)
             {
-                if (keyData == (Keys.Control | Keys.Enter)) { IrACobro(); return true; }
-                if (keyData == (Keys.Control | Keys.D) || keyData == Keys.Delete)
+                // Cobrar rápido
+                if (keyData == (Keys.Control | Keys.Enter) || keyData == Keys.F5)
+                { IrACobro(); return true; }
+
+                // Buscar platillo
+                if (keyData == (Keys.Control | Keys.K))
+                { txtBuscarPlatillo.Focus(); txtBuscarPlatillo.SelectAll(); return true; }
+
+                // Volver a Mesas
+                if (keyData == Keys.Escape)
+                { tabMain.SelectedTab = tabMesas; return true; }
+
+                // ENTER en la lista de platillos => agregar
+                if (keyData == Keys.Enter && lbPlatillos.Focused)
+                { AgregarPlatilloSeleccionado(); return true; }
+
+                // F2: actualizar peso EN MEMORIA (nota: si quieres persistir, luego agregamos un UPDATE en BD)
+                if (keyData == Keys.F2)
                 {
-                    if (_pedidoActual != null && dgvPedido.Focused && dgvPedido.CurrentRow?.DataBoundItem is PedidoDet d)
+                    if (decimal.TryParse(txtPesoGr.Text, out var gr) &&
+                        dgvPedido.CurrentRow?.DataBoundItem is PedidoDet d2 &&
+                        d2.RequierePeso)
                     {
-                        _pedidoActual.Detalles.Remove(d);
-                        int i = 1; foreach (var x in _pedidoActual.Detalles) x.Partida = i++;
+                        d2.PesoGr = gr;
+                        dgvPedido.Refresh();
                         RecalcularTotales();
                     }
                     return true;
                 }
-                if (keyData == Keys.F2)
+
+                // Delete / Ctrl+D: borrar renglón
+                if ((keyData == Keys.Delete || keyData == (Keys.Control | Keys.D)) && dgvPedido.Focused)
                 {
-                    if (decimal.TryParse(txtPesoGr.Text, out var gr) && dgvPedido.CurrentRow?.DataBoundItem is PedidoDet d && d.RequierePeso)
-                    { d.PesoGr = gr; dgvPedido.Refresh(); RecalcularTotales(); }
+                    if (dgvPedido.CurrentRow?.DataBoundItem is PedidoDet del)
+                    {
+                        // Si ya está persistido en BD
+                        if (_idPedidoActual != null && del.IdDet.HasValue)
+                        {
+                            if (MessageBox.Show("¿Eliminar la línea seleccionada?", "Pedido",
+                                                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                            {
+                                AuxRepo.EliminarPedidoDet(del.IdDet.Value);
+                                AuxRepo.RecalcularTotalesPedido(_idPedidoActual.Value);
+                                CargarPedidoDesdeDb();
+                            }
+                        }
+                        else
+                        {
+                            // Solo en memoria (aún no persistido)
+                            _pedidoActual?.Detalles.Remove(del);
+                            if (_pedidoActual != null)
+                            { int i = 1; foreach (var x in _pedidoActual.Detalles) x.Partida = i++; }
+                            RecalcularTotales();
+                        }
+                    }
                     return true;
                 }
-                if (keyData == (Keys.Control | Keys.K)) { txtBuscarPlatillo.Focus(); txtBuscarPlatillo.SelectAll(); return true; }
             }
 
-            if (keyData == Keys.Escape) { tabMain.SelectedTab = tabMesas; return true; }
-            return base.ProcessCmdKey(ref msg, keyData);
-            if (keyData == Keys.F5) { IrACobro(); return true; }
-            if (keyData == Keys.Delete && dgvPedido.Focused)
-            {
-                if (_pedidoActual != null && dgvPedido.CurrentRow?.DataBoundItem is PedidoDet d)
-                {
-                    _pedidoActual.Detalles.Remove(d);
-                    RecalcularTotales();
-                }
-                return true;
-            }
+            // SIEMPRE devolver algo: ruta por omisión
             return base.ProcessCmdKey(ref msg, keyData);
         }
+
 
         private void btnInvEliminar_Click(object sender, EventArgs e)
         {
@@ -1405,6 +1467,43 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
 
 
 
+        private void CargarPedidoDesdeDb()
+        {
+            if (_idPedidoActual == null)
+            {
+                _pedidoActual = null;
+                dgvPedido.DataSource = null;
+                lblTotales.Text = "Subtotal: $0.00   IVA: $0.00   Total: $0.00";
+                return;
+            }
+
+            var dets = AuxRepo.ListarPedidoDet(_idPedidoActual.Value);
+            var lista = new BindingList<PedidoDet>();
+            foreach (var d in dets)
+            {
+                lista.Add(new PedidoDet
+                {
+                    IdDet = d.IdDet,
+                    Partida = lista.Count + 1,
+                    Clave = d.ClaveArticulo,
+                    Nombre = SaeDb.ObtenerDescripcionArticulo(d.ClaveArticulo),
+                    Cantidad = d.Cantidad,
+                    PesoGr = d.PesoGr,
+                    PrecioUnit = d.PrecioUnit,
+                    RequierePeso = d.PesoGr.HasValue && d.PesoGr.Value > 0
+                });
+            }
+
+            if (_pedidoActual == null)
+                _pedidoActual = new Pedido { Id = _idPedidoActual.Value };
+
+            _pedidoActual.Detalles = lista;
+            dgvPedido.DataSource = _pedidoActual.Detalles;
+
+            // Totales (desde BD para que coincidan)
+            var (sub, imp, tot) = AuxRepo.RecalcularTotalesPedido(_idPedidoActual.Value);
+            lblTotales.Text = $"Subtotal: ${sub:N2}   IVA: ${imp:N2}   Total: ${tot:N2}";
+        }
 
         //no se usa esto (y no borrar, si no, explota el programa)
 

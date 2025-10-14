@@ -314,6 +314,15 @@ ORDER BY I.DESCR";
                 return con;
             }
         }
+        public static string ObtenerDescripcionArticulo(string clave)
+        {
+            using var con = GetOpenConnection();
+            string tINVE = GetTableName(con, "INVE");
+            using var cmd = new FbCommand($"SELECT DESCR FROM {tINVE} WHERE CVE_ART=@C", con);
+            cmd.Parameters.Add("@C", FbDbType.VarChar, 30).Value = clave;
+            var o = cmd.ExecuteScalar();
+            return o?.ToString()?.Trim() ?? clave;
+        }
 
     }
 }
