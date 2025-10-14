@@ -28,10 +28,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
         }
 
-        private Mesa? MesaSeleccionada()
-        {
-            return dgvMesas.CurrentRow?.DataBoundItem as Mesa;
-        }
+       
 
 
         public class Mesero
@@ -118,6 +115,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             // (opcional) helper para limpiar el contexto
 
 
+            this.Shown += (s, e) => EnsureMesaSeleccionada();
 
 
         }
@@ -209,6 +207,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
             // 3) Eventos de UI
             dgvMesas.SelectionChanged += (s, ev) => SeleccionarMesa();
+            dgvMesas.SelectionChanged += (s, ev) => EnsureMesaSeleccionada();
 
             dgvMesas.SelectionChanged += dgvMesas_SelectionChanged;
 
@@ -348,6 +347,8 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
             // Ajusta habilitación de controles según la mesa seleccionada
             ActualizarHabilitacionMeseroSegunMesa();
+
+            EnsureMesaSeleccionada();
         }
 
 
@@ -661,63 +662,50 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
         private void AbrirAtenderMesa()
         {
-            var mesa = MesaSeleccionada();
-            if (mesa == null)
+            EnsureMesaSeleccionada();
+            var mSel = MesaSeleccionada();  // ← renombrado
+            if (mSel == null)
             {
-                MessageBox.Show("Selecciona una mesa.", "Abrir mesa", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Selecciona una mesa para abrir.", "Mesas", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            // mesero: usa el preasignado si existe, si no, toma el combo
-            int? meseroId = mesa.MeseroId;
-            if (meseroId == null)
+            if (cboMesero.SelectedItem is not Mesero mesero)
             {
-                if (cboMesero.SelectedItem is not Mesero mesero)
-                {
-                    MessageBox.Show("Selecciona un mesero.", "Abrir mesa", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    return;
-                }
-                meseroId = mesero.Id;
+                MessageBox.Show("Selecciona un mesero antes de abrir la mesa.", "Mesas",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
             }
 
             try
             {
-                var r = AuxRepo.AbrirMesa(mesa.Id, meseroId.Value);
+                var r = AuxRepo.AbrirMesa(mSel.Id, mesero.Id);
 
-                // Actualiza estado en memoria y refresca UI
-                mesa.Estado = MesaEstado.OCUPADA;
-                if (!mesa.MeseroId.HasValue)
-                    mesa.MeseroId = meseroId.Value;
-
-                var meseroNombre = (cboMesero.SelectedItem as Mesero)?.Nombre
-                                   ?? _meseros.Find(x => x.Id == mesa.MeseroId)?.Nombre;
-
-                mesa.MeseroNombre = meseroNombre;
-                dgvMesas.Refresh();
-                ActualizarHabilitacionMeseroSegunMesa();
-
-                // (Opcional) guarda los IDs para usar en tabPedido
                 _idTurnoActual = r.IdTurno;
                 _idMesaTurnoActual = r.IdMesaTurno;
                 _idPedidoActual = r.IdPedido;
 
-                // (Opcional) ir a tabPedido
-                // tabMain.SelectedTab = tabPedido;
+                // Actualiza UI
+                mSel.Estado = MesaEstado.OCUPADA;
+                RefrescarFilaMesaActual();
+                mSel.MeseroId = mesero.Id;
+                mSel.MeseroNombre = mesero.Nombre;
+                lblMesaSel.Text = $"Seleccionada: {mSel.Nombre} ({mSel.Estado})";
+                dgvMesas.Refresh();
+                ActualizarHabilitacionMeseroSegunMesa();
 
-                // Ir directo a tabPedido y enfocar búsqueda para teclear rápido
+                // Ir directo a tabPedido listo para capturar
                 tabMain.SelectedTab = tabPedido;
                 txtBuscarPlatillo.Focus();
                 txtBuscarPlatillo.SelectAll();
-
-
-                MessageBox.Show($"Mesa '{mesa.Nombre}' abierta.\nTurno: {r.IdTurno}\nMesaTurno: {r.IdMesaTurno}\nPedido: {r.IdPedido}",
-                    "OK", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show(ex.Message, "No se pudo abrir la mesa", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("No se pudo abrir la mesa.\n" + ex.Message,
+                                "Abrir mesa", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
+
 
         void AgregarPlatilloSeleccionado()
         {
@@ -1441,25 +1429,37 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
 
         private void btnAsignarMesero_Click(object sender, EventArgs e)
         {
-            var mesa = MesaSeleccionada();
-            if (mesa == null) { MessageBox.Show("Selecciona una mesa."); return; }
-
-            if (mesa.Estado != MesaEstado.LIBRE)
+            EnsureMesaSeleccionada();
+            var mSel = MesaSeleccionada();     // ← renombrado (antes era 'mesa')
+            if (mSel == null)
             {
-                MessageBox.Show("La mesa no está LIBRE. No puedes cambiar el mesero hasta reabrirla.",
-                                "Asignar mesero", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("Selecciona una mesa.", "Mesas",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            if (mSel.Estado != MesaEstado.LIBRE)
+            {
+                MessageBox.Show("La mesa no está LIBRE. No puedes cambiar el mesero.",
+                                "Mesas", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            if (cboMesero.SelectedItem is not Mesero mesero)
+            {
+                MessageBox.Show("Selecciona un mesero.", "Mesas",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            if (cboMesero.SelectedItem is not Mesero mesero)
-            {
-                MessageBox.Show("Selecciona un mesero."); return;
-            }
+            // asigna y refresca
+            mSel.MeseroId = mesero.Id;
+            mSel.MeseroNombre = mesero.Nombre;
 
-            mesa.MeseroId = mesero.Id;
-            mesa.MeseroNombre = mesero.Nombre;
+            RefrescarFilaMesaActual(); // ← fuerza repintado inmediato
+            lblMesaSel.Text = $"Seleccionada: {mSel.Nombre} ({mSel.Estado})";
             dgvMesas.Refresh();
+            ActualizarHabilitacionMeseroSegunMesa();
         }
+
 
         private void btnLiberarMesa_Click(object sender, EventArgs e)
         {
@@ -1610,6 +1610,50 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             dgvReceta.DataSource = _recetaActual;
         }
 
+
+        // Devuelve la mesa actualmente seleccionada en el grid
+
+        private Mesa? MesaSeleccionada()
+        {
+            return dgvMesas.CurrentRow?.DataBoundItem as Mesa;
+
+        }
+        // Fuerza que haya una fila seleccionada y sincroniza UI (label + botones)
+        private void EnsureMesaSeleccionada()
+        {
+            if (dgvMesas.DataSource == null || dgvMesas.Rows.Count == 0)
+            {
+                _mesaSeleccionada = null;
+                lblMesaSel.Text = "Sin mesa seleccionada";
+                ActualizarHabilitacionMeseroSegunMesa();
+                return;
+            }
+
+            if (dgvMesas.CurrentRow == null)
+            {
+                dgvMesas.ClearSelection();
+                dgvMesas.CurrentCell = dgvMesas.Rows[0].Cells[0];
+                dgvMesas.Rows[0].Selected = true;
+            }
+
+            _mesaSeleccionada = MesaSeleccionada();
+            lblMesaSel.Text = _mesaSeleccionada != null
+                ? $"Seleccionada: {_mesaSeleccionada.Nombre} ({_mesaSeleccionada.Estado})"
+                : "Sin mesa seleccionada";
+
+            ActualizarHabilitacionMeseroSegunMesa();
+        }
+
+
+        private void RefrescarFilaMesaActual()
+        {
+            if (dgvMesas.CurrentRow != null)
+            {
+                int r = dgvMesas.CurrentRow.Index;
+                dgvMesas.InvalidateRow(r);
+            }
+            dgvMesas.Refresh();
+        }
 
 
         //no se usa esto (y no borrar, si no, explota el programa)

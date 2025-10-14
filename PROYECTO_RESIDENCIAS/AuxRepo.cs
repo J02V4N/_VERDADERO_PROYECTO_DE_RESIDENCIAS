@@ -660,5 +660,7 @@ namespace PROYECTO_RESIDENCIAS
             return (sub, imp, tot);
         }
 
+
+
     }
 }
