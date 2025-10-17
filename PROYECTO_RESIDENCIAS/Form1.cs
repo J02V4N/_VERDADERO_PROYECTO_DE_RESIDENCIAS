@@ -1406,7 +1406,7 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         }
 
 
-
+        // aaaa si
         private void btnGuardarConfig_Click(object sender, EventArgs e)
         {
 
