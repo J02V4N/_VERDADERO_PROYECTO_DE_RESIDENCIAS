@@ -101,6 +101,8 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
         public Form1()
         {
 
+
+
             InitializeComponent();
 
             ResetContextoMesaPedido();
@@ -116,6 +118,9 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
 
             this.Shown += (s, e) => EnsureMesaSeleccionada();
+
+            
+
 
 
         }
@@ -271,6 +276,26 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             dgvInvCaptura.CellEndEdit += (s, e) => RecalcularTotalesInventario();
 
             lbPlatillos.SelectedIndexChanged += lbPlatillos_SelectedIndexChanged;
+
+
+            txtCobroEfectivo.TextChanged += Cobro_RecalcularCambio;
+            txtCobroTarjeta.TextChanged += Cobro_RecalcularCambio;
+
+
+
+
+            btnCobroConfirmar.Click += btnCobroConfirmar_Click;
+            btnCobroCancelar.Click += (s, e) => { tabMain.SelectedTab = tabPedido; };
+
+
+
+            InicializarTabCobro();
+
+            txtImporteRecibido.TextChanged += Cobro_RecalcularCambio_UI;
+            cboFormaPago.SelectedIndexChanged += CboFormaPago_SelectedIndexChanged;
+
+            btnConfirmarCobro.Click += btnConfirmarCobro_Click;
+            btnReimprimir.Click += (s, e) => MessageBox.Show("Reimpresión pendiente (lo conectamos cuando definamos el formato).");
 
 
 
@@ -770,19 +795,30 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
         private void IrACobro()
         {
-            if (_pedidoActual == null || _pedidoActual.Detalles.Count == 0) return;
-            lblResumenCobro.Text = $"Mesa: {_mesaSeleccionada?.Nombre}\n" +
-                                   $"Mesero: {_meseros.FirstOrDefault(x => x.Id == _pedidoActual.MeseroId)?.Nombre}\n" +
-                                   $"Partidas: {_pedidoActual.Detalles.Count}\n" +
-                                   $"Subtotal: ${_pedidoActual.Subtotal:N2}\n" +
-                                   $"IVA: ${_pedidoActual.Impuesto:N2}\n" +
-                                   $"TOTAL: ${_pedidoActual.Total:N2}";
+            if (_idPedidoActual == null)
+            {
+                MessageBox.Show("No hay pedido abierto. Abre la mesa primero.", "Pedido",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
 
-            chkFacturarAhora.Checked = false;
-            txtRFC.Enabled = txtRazon.Enabled = cboUsoCFDI.Enabled = false;
+            // Totales desde BD
+            var (sub, imp, tot) = AuxRepo.RecalcularTotalesPedido(_idPedidoActual.Value);
+            _totalCobroActual = tot;
+
+            // UI: resumen y valores por defecto
+            lblResumenCobro.Text = $"Subtotal: ${sub:N2}   IVA: ${imp:N2}   Total: ${tot:N2}";
+            cboFormaPago.SelectedValue = "01";          // Efectivo por defecto
+            txtImporteRecibido.Enabled = true;
+            txtImporteRecibido.Text = tot.ToString("0.00");
+            Cobro_RecalcularCambio_UI(null, EventArgs.Empty);
 
             tabMain.SelectedTab = tabCobro;
+            txtImporteRecibido.Focus();
+            txtImporteRecibido.SelectAll();
         }
+
+
 
         private void ToggleCamposFactura()
         {
@@ -1276,10 +1312,97 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         }
 
 
-        private void btnConfirmarCobro_Click(object sender, EventArgs e)
+        
+
+        private void btnConfirmarCobro_Click(object? sender, EventArgs e)
         {
-            if (!ValidarCobro()) return;
-            ConfirmarCobro();
+            if (_idPedidoActual == null)
+            {
+                MessageBox.Show("No hay pedido abierto.", "Cobro",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var forma = (cboFormaPago.SelectedValue as string) ?? "01";
+            var metodo = (cboMetodoPago.SelectedValue as string) ?? "PUE";
+            var uso = (cboUsoCFDI.SelectedValue as string) ?? "G03";
+
+            decimal recibido = 0m;
+            decimal.TryParse(txtImporteRecibido.Text, out recibido);
+
+            decimal eff = 0m, tar = 0m;
+
+            if (forma == "01") // EFECTIVO
+            {
+                if (recibido < _totalCobroActual)
+                {
+                    MessageBox.Show($"Pago insuficiente. Total ${_totalCobroActual:N2}.", "Cobro",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                eff = recibido;
+                tar = 0m;
+            }
+            else
+            {
+                // Tarjetas/transferencia: cobramos el total por ese medio
+                eff = 0m;
+                tar = _totalCobroActual;
+            }
+
+            // Si van a facturar ahora, valida RFC y Razón (no timbramos aún; solo dejamos listo)
+            if (chkFacturarAhora.Checked)
+            {
+                if (string.IsNullOrWhiteSpace(txtRFC.Text) || string.IsNullOrWhiteSpace(txtRazon.Text))
+                {
+                    MessageBox.Show("Captura RFC y Razón social para facturar.", "CFDI",
+                                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+                // Aquí, más adelante: guardar estos datos y timbrar.
+                // RFC: txtRfc.Text.Trim()
+                // Razon: txtRazon.Text.Trim()
+                // Metodo pago CFDI: metodo (PUE/PPD)
+                // Forma pago CFDI: forma (01/03/04/28/99)
+                // Uso CFDI: uso (G03, etc.)
+            }
+
+            try
+            {
+                var res = AuxRepo.CobrarPedido(_idPedidoActual.Value, eff, tar, referenciaTarjeta: null);
+
+                // Actualiza estado de la mesa en UI
+                if (_mesaSeleccionada != null)
+                {
+                    _mesaSeleccionada.Estado = MesaEstado.EN_CUENTA;
+                    RefrescarFilaMesaActual();
+                    lblMesaSel.Text = $"Seleccionada: {_mesaSeleccionada.Nombre} ({_mesaSeleccionada.Estado})";
+                }
+
+                // Limpia pedido y UI de pedido
+                _pedidoActual = null;
+                _idPedidoActual = null;
+                dgvPedido.DataSource = null;
+                lblTotales.Text = "Subtotal: $0.00   IVA: $0.00   Total: $0.00";
+
+                // Resumen
+                var cambioTxt = lblCambio.Text;
+                var resumen = $"Total: ${res.Total:N2}\n" +
+                              $"Forma: {((ComboItem)cboFormaPago.SelectedItem).Texto}\n" +
+                              (forma == "01" ? $"Recibido: ${recibido:N2}\n{cambioTxt}" : "") +
+                              (chkFacturarAhora.Checked ? $"\nCFDI: RFC {txtRFC.Text.Trim()}  Uso {uso}  Método {metodo}" : "");
+
+                MessageBox.Show("Cobro realizado.\n\n" + resumen, "Cobro",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                // Regresa a Mesas
+                tabMain.SelectedTab = tabMesas;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "No se pudo cobrar",
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
         }
 
 
@@ -1655,6 +1778,168 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             dgvMesas.Refresh();
         }
 
+
+
+        private void Cobro_RecalcularCambio(object? sender, EventArgs e)
+        {
+            decimal total = 0m, eff = 0m, tar = 0m;
+            // tomar total del label
+            var sTot = lblCobroTotal.Text.Replace("Total:", "").Replace("$", "").Trim();
+            decimal.TryParse(sTot, out total);
+            decimal.TryParse(txtCobroEfectivo.Text, out eff);
+            decimal.TryParse(txtCobroTarjeta.Text, out tar);
+
+            var cambio = Math.Max(0m, Math.Round((eff + tar) - total, 2));
+            lblCobroCambio.Text = $"Cambio: ${cambio:N2}";
+        }
+
+
+
+        private void btnCobroConfirmar_Click(object? sender, EventArgs e)
+        {
+            if (_idPedidoActual == null)
+            {
+                MessageBox.Show("No hay pedido abierto.", "Cobro",
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            decimal eff = 0m, tar = 0m;
+            decimal.TryParse(txtCobroEfectivo.Text, out eff);
+            decimal.TryParse(txtCobroTarjeta.Text, out tar);
+            string refTar = string.IsNullOrWhiteSpace(txtCobroRef.Text) ? null : txtCobroRef.Text.Trim();
+
+            try
+            {
+                var res = AuxRepo.CobrarPedido(_idPedidoActual.Value, eff, tar, refTar);
+
+                // UI: mesa pasa a EN_CUENTA
+                if (_mesaSeleccionada != null)
+                {
+                    _mesaSeleccionada.Estado = MesaEstado.EN_CUENTA;
+                    RefrescarFilaMesaActual();
+                    lblMesaSel.Text = $"Seleccionada: {_mesaSeleccionada.Nombre} ({_mesaSeleccionada.Estado})";
+                }
+
+                // Limpia pedido actual en UI
+                _pedidoActual = null;
+                _idPedidoActual = null;
+                dgvPedido.DataSource = null;
+                lblTotales.Text = "Subtotal: $0.00   IVA: $0.00   Total: $0.00";
+
+                // Mensaje y regreso a Mesas
+                MessageBox.Show($"Cobro realizado.\nTotal: ${res.Total:N2}\nPagado: ${res.Pagado:N2}\nCambio: ${res.Cambio:N2}",
+                                "Cobro", MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                tabMain.SelectedTab = tabMesas;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message, "No se pudo cobrar",
+                                MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
+
+
+
+        private decimal _totalCobroActual = 0m;
+
+        private class ComboItem
+        {
+            public string Codigo { get; set; }
+            public string Texto { get; set; }
+            public override string ToString() => Texto;
+        }
+
+
+
+        private void InicializarTabCobro()
+        {
+            // Método de pago (CFDI) – PUE/PPD
+            cboMetodoPago.DisplayMember = "Texto";
+            cboMetodoPago.ValueMember = "Codigo";
+            cboMetodoPago.DataSource = new List<ComboItem>
+    {
+        new() { Codigo = "PUE", Texto = "PUE - Una sola exhibición" },
+        new() { Codigo = "PPD", Texto = "PPD - Parcialidades o diferido" },
+    };
+            cboMetodoPago.SelectedValue = "PUE";
+
+            // Forma de pago (CFDI): 01 Efectivo, 03 Transferencia, 04 TC, 28 TD, 99 Por definir
+            cboFormaPago.DisplayMember = "Texto";
+            cboFormaPago.ValueMember = "Codigo";
+            cboFormaPago.DataSource = new List<ComboItem>
+    {
+        new() { Codigo = "01", Texto = "01 - Efectivo" },
+        new() { Codigo = "03", Texto = "03 - Transferencia electrónica" },
+        new() { Codigo = "04", Texto = "04 - Tarjeta de crédito" },
+        new() { Codigo = "28", Texto = "28 - Tarjeta de débito" },
+        new() { Codigo = "99", Texto = "99 - Por definir" }
+    };
+            cboFormaPago.SelectedValue = "01";
+
+            // Uso CFDI (algunos comunes)
+            cboUsoCFDI.DisplayMember = "Texto";
+            cboUsoCFDI.ValueMember = "Codigo";
+            cboUsoCFDI.DataSource = new List<ComboItem>
+    {
+        new() { Codigo = "G01", Texto = "G01 - Adquisición de mercancías" },
+        new() { Codigo = "G03", Texto = "G03 - Gastos en general" },
+        new() { Codigo = "S01", Texto = "S01 - Sin efectos fiscales" },
+    };
+            cboUsoCFDI.SelectedValue = "G03";
+
+            // Estado inicial UI
+            txtImporteRecibido.Text = "0.00";
+            lblCambio.Text = "Cambio: $0.00";
+            lblResumenCobro.Text = "Subtotal: $0.00   IVA: $0.00   Total: $0.00";
+
+            // Si no marcaron "Facturar ahora", deshabilita campos de factura
+            chkFacturarAhora.CheckedChanged += (s, e) =>
+            {
+                bool on = chkFacturarAhora.Checked;
+                txtRFC.Enabled = on;
+                txtRazon.Enabled = on;
+                cboUsoCFDI.Enabled = on;
+                cboMetodoPago.Enabled = on;
+                // Nota: cboFormaPago se usa SIEMPRE para la cobranza, no solo para CFDI
+            };
+            chkFacturarAhora.Checked = false;
+            txtRFC.Enabled = txtRazon.Enabled = cboUsoCFDI.Enabled = cboMetodoPago.Enabled = false;
+        }
+
+
+
+
+        private void CboFormaPago_SelectedIndexChanged(object? sender, EventArgs e)
+        {
+            var forma = (cboFormaPago.SelectedValue as string) ?? "01";
+            bool esEfectivo = forma == "01";
+            txtImporteRecibido.Enabled = esEfectivo;
+
+            if (!esEfectivo)
+                txtImporteRecibido.Text = "0.00"; // no se usa para tarjeta/transferencia
+
+            Cobro_RecalcularCambio_UI(null, EventArgs.Empty);
+        }
+
+        private void Cobro_RecalcularCambio_UI(object? sender, EventArgs e)
+        {
+            decimal recibido = 0m;
+            decimal.TryParse(txtImporteRecibido.Text, out recibido);
+
+            var forma = (cboFormaPago.SelectedValue as string) ?? "01";
+            decimal cambio = forma == "01"
+                ? Math.Max(0m, Math.Round(recibido - _totalCobroActual, 2))
+                : 0m;
+
+            lblCambio.Text = $"Cambio: ${cambio:N2}";
+        }
+
+
+
+        
 
         //no se usa esto (y no borrar, si no, explota el programa)
 
