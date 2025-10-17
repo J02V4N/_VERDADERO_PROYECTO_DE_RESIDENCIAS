@@ -1,4 +1,4 @@
-using System;
+/*using System;
 using System.Windows.Forms;
 
 namespace PROYECTO_RESIDENCIAS
@@ -29,6 +29,40 @@ namespace PROYECTO_RESIDENCIAS
             }
 
             // 3) Arranca principal
+            Application.Run(new Form1());
+        }
+    }
+}
+*/
+
+using System;
+using System.Windows.Forms;
+
+namespace PROYECTO_RESIDENCIAS
+{
+    internal static class Program
+    {
+        [STAThread]
+        static void Main()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
+            // 1) Seleccionar empresa y probar conexión (guarda SAE_FDB en AUX.CONFIG)
+            using (var f = new FormSeleccionEmpresa())
+            {
+                if (f.ShowDialog() != DialogResult.OK) return;
+                // Si necesitas un Initialize extra, puedes ponerlo aquí.
+            }
+
+            // 2) Seleccionar/abrir turno
+            using (var t = new FormSeleccionTurno())
+            {
+                if (t.ShowDialog() != DialogResult.OK) return;
+                // Si ocupas pasar IdTurno a Form1, agrégale una propiedad pública y asígnala aquí.
+            }
+
+            // 3) Abrir principal
             Application.Run(new Form1());
         }
     }

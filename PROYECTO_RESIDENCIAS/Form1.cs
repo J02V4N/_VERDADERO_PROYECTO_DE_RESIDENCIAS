@@ -193,13 +193,15 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
         private void Form1_Load(object sender, EventArgs e)
         {
-
-
-            // 1) Carga de catálogos 
-
             CargarMeserosDesdeAux();
             CargarMesasDesdeAux();
             CargarPlatillosDesdeSae_ListBox();
+            // 0) Lee configuración persistida (impresora, almacén, lista de precios, puerto báscula)
+            CargarConfigUI();
+
+            // 1) Carga de catálogos 
+
+            
 
 
             // 2) Bindings
