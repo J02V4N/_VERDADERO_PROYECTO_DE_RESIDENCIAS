@@ -397,7 +397,11 @@ END;");
             Exec("ALTER TABLE PEDIDOS  ADD CONSTRAINT CK_PED_FACT CHECK (FACTURAR_AHORA IN (0,1));");
             Exec("ALTER TABLE BASCULA_LECTURAS ADD CONSTRAINT CK_BAS_ESTABLE CHECK (ESTABLE IN (0,1));");
 
+
+
             tx.Commit();
+
+
         }
 
         private static void SeedConfig(FbConnection conn)

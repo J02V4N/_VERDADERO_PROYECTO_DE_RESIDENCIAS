@@ -28,7 +28,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
         }
 
-       
+
 
 
         public class Mesero
@@ -119,7 +119,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
             this.Shown += (s, e) => EnsureMesaSeleccionada();
 
-            
+
 
 
 
@@ -201,7 +201,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
             // 1) Carga de catálogos 
 
-            
+
 
 
             // 2) Bindings
@@ -879,14 +879,14 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             // Pedido
             //if (chkSimularBascula.Checked && txtPesoGr != null && !txtPesoGr.IsDisposed)
             //{
-              //  txtPesoGr.Text = gramos.ToString("0");
-                //push(gramos);
-                //if (EsLecturaEstable() && lbPlatillos.SelectedItem is Platillo p && p.RequierePeso)
-                //{
-                  //  AgregarPlatilloSeleccionado(); // auto-agrega con el peso estable actual
-                   // _ultLecturas.Clear();
-                //}
-           // }
+            //  txtPesoGr.Text = gramos.ToString("0");
+            //push(gramos);
+            //if (EsLecturaEstable() && lbPlatillos.SelectedItem is Platillo p && p.RequierePeso)
+            //{
+            //  AgregarPlatilloSeleccionado(); // auto-agrega con el peso estable actual
+            // _ultLecturas.Clear();
+            //}
+            // }
 
             // Inventario
             if (chkInvSimularBascula.Checked && txtInvPesoGr != null && !txtInvPesoGr.IsDisposed)
@@ -1255,9 +1255,9 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
                 cboImpresora.Items.Add(p);
         }
 
-       // private void UpdateScaleTimer()
-       // {
-       //     _timerBascula.Enabled = chkSimularBascula.Checked || chkInvSimularBascula.Checked;
+        // private void UpdateScaleTimer()
+        // {
+        //     _timerBascula.Enabled = chkSimularBascula.Checked || chkInvSimularBascula.Checked;
         //}
 
 
@@ -1314,7 +1314,7 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         }
 
 
-        
+
 
         private void btnConfirmarCobro_Click(object? sender, EventArgs e)
         {
@@ -1941,7 +1941,13 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
 
 
 
-        
+        private void btnCfgRecetas_Click(object sender, EventArgs e)
+        {
+            using (var f = new FormRecetaEditor())
+            {
+                f.ShowDialog(this);
+            }
+        }
 
         //no se usa esto (y no borrar, si no, explota el programa)
 
@@ -1969,6 +1975,8 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         {
 
         }
+
+       
 
 
 

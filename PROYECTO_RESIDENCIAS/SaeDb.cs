@@ -99,7 +99,7 @@ namespace PROYECTO_RESIDENCIAS
 
         private static string _cachedSaeSuffix;
 
-        public static string GetCompanySuffix(FbConnection con)
+        public static string GetCompanySuffix(FbConnection con, FbTransaction tx = null)
         {
             if (!string.IsNullOrEmpty(_cachedSaeSuffix))
                 return _cachedSaeSuffix;
@@ -128,25 +128,36 @@ namespace PROYECTO_RESIDENCIAS
             return _cachedSaeSuffix;
         }
 
-        public static string GetTableName(FbConnection con, string baseName /* ej. INVE, CLIE, PROV, MINVE, FACTF */)
-        {
-            var sfx = GetCompanySuffix(con); // ej. "07"
-            var candidato = baseName + sfx;  // ej. "INVE07"
+        public static string GetTableName(FbConnection con, string baseName)
+    => GetTableName(con, baseName, null);   // compat: llamadas antiguas
 
-            using (var cmd = new FbCommand(
-                "SELECT COUNT(*) FROM RDB$RELATIONS " +
-                "WHERE RDB$SYSTEM_FLAG=0 AND TRIM(RDB$RELATION_NAME)=@t", con))
+        public static string GetTableName(FbConnection con, string baseName, FbTransaction tx /* opcional */)
+        {
+            // IMPORTANTE: si GetCompanySuffix hace SELECTs, pásale también 'tx'
+            var sfx = GetCompanySuffix(con, tx);   // ej. "07"
+            var candidato = baseName + sfx;        // ej. "INVE07"
+
+            using (var cmd = tx == null
+                ? new FbCommand(@"SELECT COUNT(*) 
+                          FROM RDB$RELATIONS 
+                          WHERE RDB$SYSTEM_FLAG=0 AND TRIM(RDB$RELATION_NAME)=@t", con)
+                : new FbCommand(@"SELECT COUNT(*) 
+                          FROM RDB$RELATIONS 
+                          WHERE RDB$SYSTEM_FLAG=0 AND TRIM(RDB$RELATION_NAME)=@t", con, tx))
             {
                 cmd.Parameters.Add("@t", FbDbType.VarChar).Value = candidato;
                 var count = Convert.ToInt32(cmd.ExecuteScalar());
                 if (count == 1) return candidato;
             }
 
-            // Fallback: cualquier tabla que empiece por baseName y termine en 2 dígitos
-            using (var cmd2 = new FbCommand(
-                "SELECT TRIM(RDB$RELATION_NAME) " +
-                "FROM RDB$RELATIONS " +
-                "WHERE RDB$SYSTEM_FLAG=0 AND RDB$RELATION_NAME STARTING WITH @pref", con))
+            // Fallback: cualquier tabla que empiece por baseName
+            using (var cmd2 = tx == null
+                ? new FbCommand(@"SELECT TRIM(RDB$RELATION_NAME)
+                          FROM RDB$RELATIONS 
+                          WHERE RDB$SYSTEM_FLAG=0 AND RDB$RELATION_NAME STARTING WITH @pref", con)
+                : new FbCommand(@"SELECT TRIM(RDB$RELATION_NAME)
+                          FROM RDB$RELATIONS 
+                          WHERE RDB$SYSTEM_FLAG=0 AND RDB$RELATION_NAME STARTING WITH @pref", con, tx))
             {
                 cmd2.Parameters.Add("@pref", FbDbType.VarChar).Value = baseName;
                 using var rd = cmd2.ExecuteReader();
