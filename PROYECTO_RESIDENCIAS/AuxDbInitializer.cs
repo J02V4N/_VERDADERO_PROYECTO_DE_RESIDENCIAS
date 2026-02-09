@@ -6,51 +6,53 @@ namespace PROYECTO_RESIDENCIAS
     {
         public static string GetDefaultAuxDbPath()
         {
-            // 1) Intenta ubicar la raíz del proyecto (carpeta que contiene el .csproj).
-            //    Esto funciona cuando ejecutas desde Visual Studio (Debug/Run).
-            string appRoot = ResolveAppRoot();
-
-            // 2) Si no se encontró (p. ej., ejecutable publicado), usa el folder del .exe.
+#if DEBUG
+            // En modo desarrollo, intenta ubicar la raíz del proyecto (carpeta del .csproj)
+            var appRoot = ResolveAppRoot();
             if (string.IsNullOrWhiteSpace(appRoot))
-                appRoot = System.AppContext.BaseDirectory;
+                appRoot = AppContext.BaseDirectory;
+#else
+            // En producción, siempre junto al ejecutable
+            var appRoot = AppContext.BaseDirectory;
+#endif
+            var dbPath = Path.Combine(appRoot, "RESTAURANTE.FDB");
 
-            // 3) Construye la ruta final (en raíz del proyecto o junto al exe).
-            string dbPath = Path.Combine(appRoot, "RESTAURANTE.FDB");
-
-            // Asegura que el directorio existe (root del proyecto o del exe ya existe, pero por si acaso):
             Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
-
             return dbPath;
         }
 
-        // Busca hacia arriba (máx. 5 niveles) hasta encontrar un *.csproj y toma ese folder como raíz del proyecto.
+#if DEBUG
+
         private static string ResolveAppRoot()
         {
-            string dir = System.AppContext.BaseDirectory;
+            var dir = AppContext.BaseDirectory;
             try
             {
                 var d = new DirectoryInfo(dir);
                 for (int i = 0; i < 5 && d != null; i++, d = d.Parent)
                 {
-                    bool hasCsproj = Directory.EnumerateFiles(d.FullName, "*.csproj", SearchOption.TopDirectoryOnly).Any();
+                    bool hasCsproj = Directory
+                        .EnumerateFiles(d.FullName, "*.csproj", SearchOption.TopDirectoryOnly)
+                        .Any();
                     if (hasCsproj)
                         return d.FullName;
                 }
             }
             catch
             {
-                // ignora y sigue con fallback
+                // Ignora y deja que GetDefaultAuxDbPath use BaseDirectory
             }
             return string.Empty;
         }
+#endif
 
         public static FbConnection EnsureCreated(
-            out string dbPath,
-            string server = "127.0.0.1",
-            int port = 3050,
-            string user = "SYSDBA",
-            string password = "masterkey",
-            string charset = "ISO8859_1")
+    out string dbPath,
+    string server = "127.0.0.1",
+    int port = 3050,
+    string user = "SYSDBA",
+    string password = "masterkey",
+    string charset = "ISO8859_1")
         {
             dbPath = GetDefaultAuxDbPath();
 
@@ -64,8 +66,6 @@ namespace PROYECTO_RESIDENCIAS
                 Charset = charset,
                 Dialect = 3,
                 Pooling = true
-                // Si necesitas especificar fbclient.dll x86:
-                // ClientLibrary = "fbclient.dll"
             };
 
             if (!File.Exists(dbPath))
@@ -81,12 +81,13 @@ namespace PROYECTO_RESIDENCIAS
             if (!TableExists(conn, "USUARIOS"))
             {
                 CreateSchema(conn);
-                // Semillas mínimas
                 SeedConfig(conn);
             }
 
             return conn;
         }
+
+
 
         public static void UpsertConfig(FbConnection conn, string clave, string valor)
         {
@@ -108,6 +109,35 @@ namespace PROYECTO_RESIDENCIAS
                 ins.ExecuteNonQuery();
             }
         }
+
+
+
+
+        public static string? GetConfig(FbConnection conn, string clave)
+        {
+            if (conn == null)
+                throw new ArgumentNullException(nameof(conn));
+
+            if (string.IsNullOrWhiteSpace(clave))
+                throw new ArgumentException("La clave no puede ser vacía.", nameof(clave));
+
+            using var cmd = new FbCommand(
+                "SELECT VALOR FROM CONFIG WHERE CLAVE = @CLAVE",
+                conn);
+
+            cmd.Parameters.Add(new FbParameter("@CLAVE", FbDbType.VarChar, 50) { Value = clave });
+            var o = cmd.ExecuteScalar();
+            return o?.ToString();
+        }
+
+        // Sobrecarga cómoda: abre conexión auxiliar y lee CONFIG directamente.
+        public static string? GetConfig(string clave)
+        {
+            string path;
+            using var conn = EnsureCreated(out path, charset: "ISO8859_1");
+            return GetConfig(conn, clave);
+        }
+
 
 
         private static bool TableExists(FbConnection conn, string tableNameUpper)

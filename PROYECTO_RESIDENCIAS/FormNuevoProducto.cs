@@ -1,65 +1,89 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Drawing;
+using System.Windows.Forms;
 
 namespace PROYECTO_RESIDENCIAS
 {
     public partial class FormNuevoProducto : Form
     {
-        public string CveArt => txtClave.Text;
-        public string Descripcion => txtDescripcion.Text;
-        public string Unidad => txtUnidad.Text;
+        private const string PrefijoClave = "Prep";
+
+        // Clave final: prefijo fijo + parte editable del textbox
+        public string CveArt
+            => (PrefijoClave + (txtClave.Text ?? string.Empty).Trim()).ToUpperInvariant();
+
+        public string Descripcion
+            => (txtDescripcion.Text ?? string.Empty).Trim().ToUpperInvariant();
+
+        public string Unidad
+            => (txtUnidad.Text ?? string.Empty).Trim().ToUpperInvariant();
+
+        public string ClaveCompleta => (lblPrefijo.Text ?? "") + (txtClave.Text ?? "");
+      
 
         public FormNuevoProducto()
         {
             InitializeComponent();
 
-            // ✅ Estos controles ya existen porque InitializeComponent() ya corrió
-            lblPrefijo.Text = "Prep";
+            // Prefijo visual fijo
+            lblPrefijo.Text = PrefijoClave;
 
-            // Si quieres mover el textbox a la derecha para dejar espacio al label:
-            txtClave.Location = new Point(txtClave.Location.X + 40, txtClave.Location.Y);
+            // Opcional: ajustar posición del textbox con base en el ancho real del label
+            var loc = txtClave.Location;
+            txtClave.Location = new Point(lblPrefijo.Right + 4, loc.Y);
 
-            // La parte editable después de "Prep" = máx 12
+            // Parte editable (sufijo) máx 12 caracteres
             txtClave.MaxLength = 12;
 
-            // Si conectaste el click aquí:
+            // Evitar suscripciones duplicadas si el diseñador ya lo había conectado
             btnOk.Click += BtnOk_Click;
         }
 
-
-        private void BtnOk_Click(object? sender, EventArgs e)
+        private void BtnOk_Click(object sender, EventArgs e)
         {
-            // Parte editable (después de "Prep")
-            var parte = (txtClave.Text ?? "").Trim();
+            // Parte editable después del prefijo
+            var parte = (txtClave.Text ?? string.Empty).Trim().ToUpperInvariant();
 
-            // 1) Debe haber algo después de "Prep"
+            // 1) Debe haber algo después del prefijo
             if (parte.Length == 0)
             {
-                MessageBox.Show("Agrega contenido a la clave después de 'Prep'.",
-                    "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                this.DialogResult = DialogResult.None;
+                MessageBox.Show(
+                    "Agrega contenido a la clave después del prefijo.",
+                    "Validación",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                DialogResult = DialogResult.None;
+                txtClave.Focus();
                 return;
             }
 
-            // 2) No más de 12 en la parte editable (ya reforzado con MaxLength)
+            // 2) Máx 12 en la parte editable (reforzado con MaxLength)
             if (parte.Length > 12)
             {
-                MessageBox.Show("La parte editable de la clave debe tener máximo 12 caracteres.",
-                    "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                this.DialogResult = DialogResult.None;
+                MessageBox.Show(
+                    "La parte editable de la clave debe tener máximo 12 caracteres.",
+                    "Validación",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                DialogResult = DialogResult.None;
+                txtClave.Focus();
                 return;
             }
 
-            // 3) Clave final = "Prep" + parte (total máx 16)
-            var clave = "Prep" + parte;
-            if (clave.Length > 16)
+            // 3) Validar que la clave completa no exceda 16 caracteres
+            var claveCompleta = PrefijoClave + parte;
+            if (claveCompleta.Length > 16)
             {
-                MessageBox.Show("La clave debe tener máximo 16 caracteres (incluyendo 'Prep').",
-                    "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                this.DialogResult = DialogResult.None;
+                MessageBox.Show(
+                    "La clave debe tener máximo 16 caracteres (incluyendo el prefijo).",
+                    "Validación",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                DialogResult = DialogResult.None;
+                txtClave.Focus();
                 return;
             }
 
@@ -67,30 +91,44 @@ namespace PROYECTO_RESIDENCIAS
             var descr = (txtDescripcion.Text ?? string.Empty).Trim();
             if (descr.Length == 0)
             {
-                MessageBox.Show("La descripción es obligatoria.",
-                    "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                this.DialogResult = DialogResult.None;
+                MessageBox.Show(
+                    "La descripción es obligatoria.",
+                    "Validación",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                DialogResult = DialogResult.None;
+                txtDescripcion.Focus();
                 return;
             }
+
             if (descr.Length > 40)
             {
-                MessageBox.Show("La descripción debe tener máximo 40 caracteres.",
-                    "Validación", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                this.DialogResult = DialogResult.None;
+                MessageBox.Show(
+                    "La descripción debe tener máximo 40 caracteres.",
+                    "Validación",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+
+                DialogResult = DialogResult.None;
+                txtDescripcion.Focus();
                 return;
             }
 
             // Unidad por defecto
-            var um = (txtUnidad.Text ?? "").Trim();
-            if (string.IsNullOrWhiteSpace(um)) um = "PZA";
+            var um = (txtUnidad.Text ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(um))
+            {
+                um = "PZA";
+            }
 
-            // Escribe los valores normalizados en los TextBox (por si los lees afuera)
-            txtClave.Text = clave;          // ahora ya incluye "Prep"
-            txtDescripcion.Text = descr;
-            txtUnidad.Text = um;
+            // Normalizar valores en los controles para quien los lea después
+            txtClave.Text = parte;                 // solo la parte editable
+            txtDescripcion.Text = descr.ToUpperInvariant();
+            txtUnidad.Text = um.ToUpperInvariant();
 
-            // Deja continuar el DialogResult=OK
+            // No se toca DialogResult aquí: si el botón tiene DialogResult=OK
+            // en el diseñador, la ventana se cerrará; si no, deberás asignarlo afuera.
         }
-
     }
 }

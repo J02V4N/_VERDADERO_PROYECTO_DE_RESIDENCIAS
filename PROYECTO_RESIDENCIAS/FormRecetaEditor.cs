@@ -1,5 +1,10 @@
-﻿using FirebirdSql.Data.FirebirdClient;
+﻿using System;
 using System.Data;
+using System.Linq;
+using System.Windows.Forms;
+using System.Drawing;
+using FirebirdSql.Data.FirebirdClient;
+
 
 namespace PROYECTO_RESIDENCIAS
 {
@@ -341,15 +346,18 @@ ORDER BY K.CVE_PROD";
                     cmdDelKit.ExecuteNonQuery();
                 }
 
-                // 3) BORRADO FÍSICO (NO recomendado salvo que estés seguro)
-                using (var cmdDelInv = new FirebirdSql.Data.FirebirdClient.FbCommand(
-                    $@"DELETE FROM {tINVE} WHERE CVE_ART=@C", con, tx))
+                // 3) BAJA LÓGICA: marcar STATUS='B' en INVE en lugar de borrar
+                using (var cmdUpdInv = new FbCommand(
+                    $@"UPDATE {tINVE}
+       SET STATUS = 'B'
+       WHERE CVE_ART = @C", con, tx))
                 {
-                    cmdDelInv.Parameters.Add("@C", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 30).Value = _cveArtActual;
-                    var rows = cmdDelInv.ExecuteNonQuery();
+                    cmdUpdInv.Parameters.Add("@C", FbDbType.VarChar, 30).Value = _cveArtActual;
+                    var rows = cmdUpdInv.ExecuteNonQuery();
                     if (rows == 0)
-                        throw new Exception("No se encontró el producto en INVE para borrar.");
+                        throw new Exception("No se encontró el producto en INVE para darlo de baja.");
                 }
+
 
 
                 tx.Commit();
@@ -512,19 +520,22 @@ VALUES (@CVE_ART, @DESCR, @UNI_MED, @TIPO_ELE, NULL)";
             if (e.RowIndex < 0) return;
             var row = dgvIngredientes.Rows[e.RowIndex];
 
-            // ⬇️ Reemplaza TU bloque por este:
-            if (dgvIngredientes.Columns[e.ColumnIndex].Name == "colIngrediente")
+            var colName = dgvIngredientes.Columns[e.ColumnIndex].Name;
+
+            if (colName == "colIngrediente")
             {
                 var cveIng = row.Cells["colIngrediente"].Value?.ToString();
                 CompletarUnidadYCostoDesdeCatalogo(row, cveIng ?? "");
             }
 
-            if (new[] { "colCantidad", "colPorcen", "colCostoUnit", "colIngrediente" }
-    .Contains(dgvIngredientes.Columns[e.ColumnIndex].Name))
+            // Si cambia algo que impacta el costo, recalcular
+            if (colName == "colCantidad" || colName == "colPorcen" ||
+                colName == "colCostoUnit" || colName == "colIngrediente")
             {
                 RecalcFila(row);
                 RecalcTotales();
             }
+
 
         }
 
@@ -591,5 +602,14 @@ VALUES (@CVE_ART, @DESCR, @UNI_MED, @TIPO_ELE, NULL)";
         private static decimal ToDec(object v) =>
             v == null || v == DBNull.Value || string.IsNullOrWhiteSpace(v.ToString())
                 ? 0m : Convert.ToDecimal(v);
+
+
+
+        //no borrar, o explota la interfaz
+        private void FormRecetaEditor_Load(object sender, EventArgs e)
+        {
+
+        }
+        //hasta aqui lo que no se borra
     }
 }

@@ -7,9 +7,9 @@ namespace PROYECTO_RESIDENCIAS
         public class MesaDto
         {
             public int Id { get; set; }
-            public string Nombre { get; set; }
+            public string Nombre { get; set; } = string.Empty;
             public int? Capacidad { get; set; }
-            public string Estado { get; set; }
+            public string Estado { get; set; } = string.Empty;
             // nuevos:
             public int? MeseroIdActual { get; set; }
             public string MeseroNombre { get; set; }
@@ -165,33 +165,12 @@ namespace PROYECTO_RESIDENCIAS
             using var conn = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
             using var tx = conn.BeginTransaction();
 
-            // Turno abierto de HOY = FECHA=CURRENT_DATE y HORA_FIN IS NULL
-            int? id = null;
-            using (var cmd = new FirebirdSql.Data.FirebirdClient.FbCommand(
-                "SELECT ID_TURNO FROM TURNOS WHERE FECHA = CURRENT_DATE AND HORA_FIN IS NULL ROWS 1",
-                conn, tx))
-            {
-                var o = cmd.ExecuteScalar();
-                if (o != null && o != DBNull.Value) id = System.Convert.ToInt32(o);
-            }
+            int idTurno = GetOrOpenTurnoHoyInternal(conn, tx);
 
-            if (id.HasValue)
-            {
-                tx.Commit();
-                return id.Value;
-            }
-
-            // Crear turno del día (HORA_INI requerida; FECHA la rellena el trigger si no la pasas)
-            using (var cmdIns = new FirebirdSql.Data.FirebirdClient.FbCommand(
-                "INSERT INTO TURNOS (FECHA, HORA_INI, RESPONSABLE) " +
-                "VALUES (CURRENT_DATE, CURRENT_TIME, 'SISTEMA') RETURNING ID_TURNO",
-                conn, tx))
-            {
-                int nuevo = System.Convert.ToInt32(cmdIns.ExecuteScalar());
-                tx.Commit();
-                return nuevo;
-            }
+            tx.Commit();
+            return idTurno;
         }
+
 
 
 
@@ -210,22 +189,8 @@ namespace PROYECTO_RESIDENCIAS
             using var tx = conn.BeginTransaction();
 
             // 1) Turno del día (abierto)
-            int idTurno;
-            using (var cmdT = new FirebirdSql.Data.FirebirdClient.FbCommand(
-                "SELECT ID_TURNO FROM TURNOS WHERE FECHA = CURRENT_DATE AND HORA_FIN IS NULL ROWS 1",
-                conn, tx))
-            {
-                var o = cmdT.ExecuteScalar();
-                if (o == null || o == DBNull.Value)
-                {
-                    using var cmdIns = new FirebirdSql.Data.FirebirdClient.FbCommand(
-                        "INSERT INTO TURNOS (FECHA, HORA_INI, RESPONSABLE) " +
-                        "VALUES (CURRENT_DATE, CURRENT_TIME, 'SISTEMA') RETURNING ID_TURNO",
-                        conn, tx);
-                    idTurno = System.Convert.ToInt32(cmdIns.ExecuteScalar());
-                }
-                else idTurno = System.Convert.ToInt32(o);
-            }
+            int idTurno = GetOrOpenTurnoHoyInternal(conn, tx);
+            
 
             // 2) Validar mesa LIBRE
             using (var cmdMesa = new FirebirdSql.Data.FirebirdClient.FbCommand(
@@ -635,30 +600,19 @@ namespace PROYECTO_RESIDENCIAS
         /// <summary>
         /// Recalcula y actualiza SUBTOTAL/IMPUESTO/TOTAL de PEDIDOS. Devuelve los totales.
         /// </summary>
-        public static (decimal Subtotal, decimal Impuesto, decimal Total) RecalcularTotalesPedido(int idPedido, decimal tasaIva = 0.16m)
+        public static (decimal Subtotal, decimal Impuesto, decimal Total)
+    RecalcularTotalesPedido(int idPedido, decimal tasaIva = 0.16m)
         {
             string path;
             using var con = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
-            decimal sub;
-            using (var cmdS = new FbCommand("SELECT COALESCE(SUM(IMPORTE),0) FROM PEDIDO_DET WHERE ID_PEDIDO=@P", con))
-            {
-                cmdS.Parameters.Add("@P", FbDbType.Integer).Value = idPedido;
-                sub = Convert.ToDecimal(cmdS.ExecuteScalar());
-            }
-            var imp = Math.Round(sub * tasaIva, 2);
-            var tot = Math.Round(sub + imp, 2);
+            using var tx = con.BeginTransaction();
 
-            using (var cmdU = new FbCommand("UPDATE PEDIDOS SET SUBTOTAL=@S, IMPUESTO=@I, TOTAL=@T WHERE ID_PEDIDO=@P", con))
-            {
-                cmdU.Parameters.Add("@S", FbDbType.Decimal).Value = sub;
-                cmdU.Parameters.Add("@I", FbDbType.Decimal).Value = imp;
-                cmdU.Parameters.Add("@T", FbDbType.Decimal).Value = tot;
-                cmdU.Parameters.Add("@P", FbDbType.Integer).Value = idPedido;
-                cmdU.ExecuteNonQuery();
-            }
+            var totales = RecalcularTotalesPedidoInternal(con, tx, idPedido, tasaIva);
 
-            return (sub, imp, tot);
+            tx.Commit();
+            return totales;
         }
+
 
         public class CobroResult
         {
@@ -675,23 +629,27 @@ namespace PROYECTO_RESIDENCIAS
             using var con = AuxDbInitializer.EnsureCreated(out path, charset: "ISO8859_1");
             using var tx = con.BeginTransaction();
 
-            // 1) Traer totales del pedido y mesa/mesa_turno
-            decimal total;
+            // 0) Recalcular totales del pedido dentro de esta misma transacción
+            var totales = RecalcularTotalesPedidoInternal(con, tx, idPedido, 0.16m);
+            decimal total = totales.Total;
+
+            // 1) Traer mesa/mesa_turno y validar estado del pedido
             int idMesaTurno, idMesa;
             using (var cmd = new FbCommand(@"
-        SELECT P.TOTAL, MT.ID_MESA_TURNO, MT.ID_MESA, P.ESTADO
+        SELECT MT.ID_MESA_TURNO, MT.ID_MESA, P.ESTADO
         FROM PEDIDOS P
         JOIN MESA_TURNO MT ON MT.ID_MESA_TURNO = P.ID_MESA_TURNO
         WHERE P.ID_PEDIDO = @P", con, tx))
             {
                 cmd.Parameters.Add("@P", FbDbType.Integer).Value = idPedido;
                 using var rd = cmd.ExecuteReader();
-                if (!rd.Read()) throw new InvalidOperationException("Pedido no encontrado.");
+                if (!rd.Read())
+                    throw new InvalidOperationException("Pedido no encontrado.");
+
                 var estado = rd["ESTADO"]?.ToString();
                 if (!string.Equals(estado, "ABIERTO", StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException("El pedido no está ABIERTO.");
 
-                total = Convert.ToDecimal(rd["TOTAL"]);
                 idMesaTurno = Convert.ToInt32(rd["ID_MESA_TURNO"]);
                 idMesa = Convert.ToInt32(rd["ID_MESA"]);
             }
@@ -704,22 +662,30 @@ namespace PROYECTO_RESIDENCIAS
             var cambio = Math.Round(pagado - total, 2);
 
             // 3) Marcar pedido COBRADO
-            using (var up = new FbCommand("UPDATE PEDIDOS SET ESTADO='COBRADO' WHERE ID_PEDIDO=@P", con, tx))
+            using (var up = new FbCommand(
+                   "UPDATE PEDIDOS SET ESTADO='COBRADO' WHERE ID_PEDIDO=@P",
+                   con, tx))
             {
                 up.Parameters.Add("@P", FbDbType.Integer).Value = idPedido;
                 up.ExecuteNonQuery();
             }
 
-            // (Opcional) guardar corte simple del tipo de pago en CONFIG_LOG o similar.
-            // Si quieres desglose por formas de pago, después añadimos tabla PAGOS.
+            // TODO: aquí es donde, en la integración real con SAE,
+            // debes generar la nota de venta y los movimientos de inventario.
+            //  - Insertar nota/venta en tablas SAE.
+            //  - Insertar movimientos de salida en MINVE (o equivalente).
+            //  - Mantener consistencia con el costeo de SAE.
 
-            // 4) Poner mesa/mesa_turno en EN_CUENTA (esperando entrega/cierre de mesa)
-            using (var upMt = new FbCommand("UPDATE MESA_TURNO SET ESTADO='EN_CUENTA' WHERE ID_MESA_TURNO=@MT", con, tx))
+            // 4) Poner mesa/mesa_turno en EN_CUENTA (esperando cierre de mesa físico)
+            using (var upMt = new FbCommand(
+                   "UPDATE MESA_TURNO SET ESTADO='EN_CUENTA' WHERE ID_MESA_TURNO=@MT", con, tx))
             {
                 upMt.Parameters.Add("@MT", FbDbType.Integer).Value = idMesaTurno;
                 upMt.ExecuteNonQuery();
             }
-            using (var upM = new FbCommand("UPDATE MESAS SET ESTADO='EN_CUENTA' WHERE ID_MESA=@M", con, tx))
+
+            using (var upM = new FbCommand(
+                   "UPDATE MESAS SET ESTADO='EN_CUENTA' WHERE ID_MESA=@M", con, tx))
             {
                 upM.Parameters.Add("@M", FbDbType.Integer).Value = idMesa;
                 upM.ExecuteNonQuery();
@@ -736,6 +702,67 @@ namespace PROYECTO_RESIDENCIAS
                 IdMesaTurno = idMesaTurno
             };
         }
+
+
+
+
+
+        // Helper interno: obtiene el turno abierto de hoy o lo crea, usando la misma conexión/transacción.
+        private static int GetOrOpenTurnoHoyInternal(FbConnection conn, FbTransaction tx)
+        {
+            using (var cmdT = new FbCommand(
+                   "SELECT ID_TURNO FROM TURNOS WHERE FECHA = CURRENT_DATE AND HORA_FIN IS NULL ROWS 1",
+                   conn, tx))
+            {
+                var o = cmdT.ExecuteScalar();
+                if (o != null && o != DBNull.Value)
+                    return Convert.ToInt32(o);
+            }
+
+            using (var cmdIns = new FbCommand(
+                   "INSERT INTO TURNOS (FECHA, HORA_INI, RESPONSABLE) " +
+                   "VALUES (CURRENT_DATE, CURRENT_TIME, 'SISTEMA') RETURNING ID_TURNO",
+                   conn, tx))
+            {
+                return Convert.ToInt32(cmdIns.ExecuteScalar());
+            }
+        }
+
+
+
+
+        // Helper interno: recalcula totales de un pedido dentro de la transacción indicada.
+        private static (decimal Subtotal, decimal Impuesto, decimal Total)
+            RecalcularTotalesPedidoInternal(FbConnection con, FbTransaction tx, int idPedido, decimal tasaIva)
+        {
+            decimal sub;
+            using (var cmdS = new FbCommand(
+                   "SELECT COALESCE(SUM(IMPORTE),0) FROM PEDIDO_DET WHERE ID_PEDIDO=@P", con, tx))
+            {
+                cmdS.Parameters.Add("@P", FbDbType.Integer).Value = idPedido;
+                sub = Convert.ToDecimal(cmdS.ExecuteScalar());
+            }
+
+            var imp = Math.Round(sub * tasaIva, 2);
+            var tot = Math.Round(sub + imp, 2);
+
+            using (var cmdU = new FbCommand(
+                   "UPDATE PEDIDOS SET SUBTOTAL=@S, IMPUESTO=@I, TOTAL=@T WHERE ID_PEDIDO=@P",
+                   con, tx))
+            {
+                cmdU.Parameters.Add("@S", FbDbType.Decimal).Value = sub;
+                cmdU.Parameters.Add("@I", FbDbType.Decimal).Value = imp;
+                cmdU.Parameters.Add("@T", FbDbType.Decimal).Value = tot;
+                cmdU.Parameters.Add("@P", FbDbType.Integer).Value = idPedido;
+                cmdU.ExecuteNonQuery();
+            }
+
+            return (sub, imp, tot);
+        }
+
+
+
+
 
 
     }

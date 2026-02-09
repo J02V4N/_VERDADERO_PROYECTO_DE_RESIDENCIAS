@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\DELL\\Desktop\\PROYECTO_RESIDENCIA\\PROYECTO_RESIDENCIAS\\PROYECTO_RESIDENCIAS.csproj": {}
+    "C:\\Users\\DELL\\Documents\\Visual Studio\\Residencia\\PROYECTO_RESIDENCIAS\\PROYECTO_RESIDENCIAS.csproj": {}
   },
   "projects": {
-    "C:\\Users\\DELL\\Desktop\\PROYECTO_RESIDENCIA\\PROYECTO_RESIDENCIAS\\PROYECTO_RESIDENCIAS.csproj": {
+    "C:\\Users\\DELL\\Documents\\Visual Studio\\Residencia\\PROYECTO_RESIDENCIAS\\PROYECTO_RESIDENCIAS.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\DELL\\Desktop\\PROYECTO_RESIDENCIA\\PROYECTO_RESIDENCIAS\\PROYECTO_RESIDENCIAS.csproj",
+        "projectUniqueName": "C:\\Users\\DELL\\Documents\\Visual Studio\\Residencia\\PROYECTO_RESIDENCIAS\\PROYECTO_RESIDENCIAS.csproj",
         "projectName": "PROYECTO_RESIDENCIAS",
-        "projectPath": "C:\\Users\\DELL\\Desktop\\PROYECTO_RESIDENCIA\\PROYECTO_RESIDENCIAS\\PROYECTO_RESIDENCIAS.csproj",
+        "projectPath": "C:\\Users\\DELL\\Documents\\Visual Studio\\Residencia\\PROYECTO_RESIDENCIAS\\PROYECTO_RESIDENCIAS.csproj",
         "packagesPath": "C:\\Users\\DELL\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\DELL\\Desktop\\PROYECTO_RESIDENCIA\\PROYECTO_RESIDENCIAS\\obj\\",
+        "outputPath": "C:\\Users\\DELL\\Documents\\Visual Studio\\Residencia\\PROYECTO_RESIDENCIAS\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\DELL\\AppData\\Roaming\\NuGet\\NuGet.Config",
@@ -40,7 +40,7 @@
           "auditLevel": "low",
           "auditMode": "direct"
         },
-        "SdkAnalysisLevel": "9.0.300"
+        "SdkAnalysisLevel": "10.0.100"
       },
       "frameworks": {
         "net8.0-windows7.0": {
@@ -70,7 +70,7 @@
               "privateAssets": "none"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.306/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.102/PortableRuntimeIdentifierGraph.json"
         }
       }
     }

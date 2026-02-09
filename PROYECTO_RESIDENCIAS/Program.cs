@@ -1,4 +1,4 @@
-/*using System;
+Ôªø/*using System;
 using System.Windows.Forms;
 
 namespace PROYECTO_RESIDENCIAS
@@ -21,7 +21,7 @@ namespace PROYECTO_RESIDENCIAS
                 SaeDb.Initialize(f.SelectedConnectionString);
             }
 
-            // 2) SelecciÛn/creaciÛn de turno
+            // 2) Selecci√≥n/creaci√≥n de turno
             using (var t = new FormSeleccionTurno())
             {
                 if (t.ShowDialog() != DialogResult.OK) return;
@@ -48,22 +48,40 @@ namespace PROYECTO_RESIDENCIAS
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            // 1) Seleccionar empresa y probar conexiÛn (guarda SAE_FDB en AUX.CONFIG)
-            using (var f = new FormSeleccionEmpresa())
+            string saeFdb = null;
+
+            try
             {
-                if (f.ShowDialog() != DialogResult.OK) return;
-                // Si necesitas un Initialize extra, puedes ponerlo aquÌ.
+                string auxPath;
+                using var auxConn = AuxDbInitializer.EnsureCreated(out auxPath, charset: "ISO8859_1");
+                saeFdb = AuxDbInitializer.GetConfig(auxConn, "SAE_FDB"); // si ya tienes este m√©todo
+            }
+            catch
+            {
+                // si falla la lectura de config, saeFdb quedar√° null
             }
 
-            // 2) Seleccionar/abrir turno
-            using (var t = new FormSeleccionTurno())
+            if (string.IsNullOrWhiteSpace(saeFdb) || !File.Exists(saeFdb))
             {
-                if (t.ShowDialog() != DialogResult.OK) return;
-                // Si ocupas pasar IdTurno a Form1, agrÈgale una propiedad p˙blica y asÌgnala aquÌ.
+#if DEBUG
+                using var sel = new FormSeleccionEmpresa();
+                if (sel.ShowDialog() != DialogResult.OK)
+                    return; // usuario cancel√≥
+
+                saeFdb = sel.SelectedFdbPath;
+#else
+        MessageBox.Show("No se encontr√≥ una ruta v√°lida a la base de Aspel SAE. Contacta al administrador.",
+                        "Error de configuraci√≥n",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+        return;
+#endif
             }
 
-            // 3) Abrir principal
-            Application.Run(new Form1());
+            // A partir de aqu√≠, ya tienes saeFdb v√°lido
+            // ‚Üí sigues con selecci√≥n de turno, Form1, etc.
+            Application.Run(new Form1(/* si quieres, p√°sale saeFdb por ctor */));
         }
+
     }
 }

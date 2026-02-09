@@ -8,7 +8,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
     public partial class Form1 : Form   ///inicio public partial class Form1 : Form
     {
 
-        private FbConnection _saeConn; ///llamada a la conexion de bd
+        private FbConnection? _saeConn; ///llamada a la conexion de bd
 
 
         // ======== MODELOS SIMPLES (en memoria) ========
@@ -123,6 +123,10 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
 
 
+                    // Maneja el fin de edición en el grid de pedido y recalcula totales
+        
+
+
         }
 
 
@@ -193,6 +197,9 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
         private void Form1_Load(object sender, EventArgs e)
         {
+
+            lbInvArticulos.DoubleClick += (s, e) => AgregarEntradaInventario();
+
             CargarMeserosDesdeAux();
             CargarMesasDesdeAux();
             CargarPlatillosDesdeSae_ListBox();
@@ -225,8 +232,8 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             //chkSimularBascula.CheckedChanged += (s, e) => UpdateScaleTimer();
 
             btnIrCobro.Click += (s, ev) => IrACobro();
-            chkFacturarAhora.CheckedChanged += (s, ev) => ToggleCamposFactura();
-            btnConfirmarCobro.Click += (s, ev) => ConfirmarCobro();
+            
+            
 
             // Hotkeys una sola vez:
             lbInvArticulos.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { AgregarEntradaInventario(); e.Handled = true; } };
@@ -264,36 +271,24 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             btnInvGuardarAux.Click += (s, e) => GuardarEntradasInventarioEnAux();
             btnInvLimpiar.Click += (s, e) => LimpiarCapturaInventario();
 
-            // Config grilla de inventario
-            dgvInvCaptura.AutoGenerateColumns = false;
-            dgvInvCaptura.Columns.Clear();
-            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "#", DataPropertyName = "Partida", Width = 40, ReadOnly = true });
-            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Clave", DataPropertyName = "Clave", Width = 100, ReadOnly = true });
-            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Descripción", DataPropertyName = "Nombre", Width = 220, ReadOnly = true });
-            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Peso (g)", DataPropertyName = "PesoGr", Width = 80 });
-            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Kg", DataPropertyName = "PesoKg", Width = 70, ReadOnly = true });
-            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Costo/Kg", DataPropertyName = "CostoKg", Width = 80 });
-            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn { HeaderText = "Importe", DataPropertyName = "Importe", Width = 80, ReadOnly = true });
-            dgvInvCaptura.DataSource = _invEntradas;
-            dgvInvCaptura.CellEndEdit += (s, e) => RecalcularTotalesInventario();
+            
 
             lbPlatillos.SelectedIndexChanged += lbPlatillos_SelectedIndexChanged;
 
 
-            txtCobroEfectivo.TextChanged += Cobro_RecalcularCambio;
-            txtCobroTarjeta.TextChanged += Cobro_RecalcularCambio;
+            
 
 
 
 
-            btnCobroConfirmar.Click += btnCobroConfirmar_Click;
+            
             btnCobroCancelar.Click += (s, e) => { tabMain.SelectedTab = tabPedido; };
 
 
 
             InicializarTabCobro();
 
-            txtImporteRecibido.TextChanged += Cobro_RecalcularCambio_UI;
+            
             cboFormaPago.SelectedIndexChanged += CboFormaPago_SelectedIndexChanged;
 
             btnConfirmarCobro.Click += btnConfirmarCobro_Click;
@@ -319,6 +314,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
 
             ConfigurarGridReceta();
+
 
 
 
@@ -367,9 +363,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             }
             dgvMesas.DataSource = null;
             dgvMesas.DataSource = _mesas;
-            var colMesero = dgvMesas.Columns.Cast<DataGridViewColumn>()
-                  .FirstOrDefault(c => c.HeaderText.Equals("Mesero", StringComparison.OrdinalIgnoreCase));
-            if (colMesero != null) colMesero.DataPropertyName = "MeseroNombre";
+            
 
 
             // Ajusta habilitación de controles según la mesa seleccionada
@@ -482,13 +476,12 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             {
                 Name = "colMesaMesero",
                 HeaderText = "Mesero",
-                DataPropertyName = "MeseroId",
+                DataPropertyName = "MeseroNombre",   // ← usar el nombre, no el Id
                 Width = 110,
                 ReadOnly = true
             });
 
-            dgvMesas.CellFormatting -= DgvMesas_CellFormatting;
-            dgvMesas.CellFormatting += DgvMesas_CellFormatting;
+            
 
             // ===== PEDIDO =====
             dgvPedido.AutoGenerateColumns = false;
@@ -557,8 +550,9 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             dgvPedido.Columns["colPesoGr"].DefaultCellStyle.Format = "N0";
             dgvPedido.Columns["colCantidad"].DefaultCellStyle.Format = "N2";
 
-            dgvPedido.CellEndEdit -= (s, e) => RecalcularTotales();
-            dgvPedido.CellEndEdit += (s, e) => RecalcularTotales();
+            dgvPedido.CellEndEdit -= dgvPedido_CellEndEdit;
+            dgvPedido.CellEndEdit += dgvPedido_CellEndEdit;
+
 
             // ===== INVENTARIO (captura por báscula) =====
             dgvInvCaptura.AutoGenerateColumns = false;
@@ -630,14 +624,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             dgvInvCaptura.CellValidating += DgvInvCaptura_CellValidating;
         }
 
-        private void DgvMesas_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
-        {
-            if (dgvMesas.Columns[e.ColumnIndex].Name == "colMesaMesero" && e.Value is int id && id > 0)
-            {
-                var m = _meseros.FirstOrDefault(x => x.Id == id);
-                e.Value = m?.Nombre ?? "";
-            }
-        }
+        
 
         private void DgvInvCaptura_CellValidating(object sender, DataGridViewCellValidatingEventArgs e)
         {
@@ -822,14 +809,10 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
 
 
-        private void ToggleCamposFactura()
-        {
+        
 
-            bool on = chkFacturarAhora.Checked;
-            txtRFC.Enabled = txtRazon.Enabled = cboUsoCFDI.Enabled = on;
-            // También podrías forzar validaciones cuando on=true
-        }
 
+        [Obsolete("Usar siempre btnConfirmarCobro_Click (flujo SAE + CFDI).")]
         private void ConfirmarCobro()
         {
             if (_pedidoActual == null) return;
@@ -1240,11 +1223,7 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
 
         private void txtImporteRecibido_TextChanged(object sender, EventArgs e)
         {
-            if (_pedidoActual == null) return;
-            decimal recibido = 0m;
-            decimal.TryParse(txtImporteRecibido.Text, out recibido);
-            decimal cambio = Math.Max(0, recibido - _pedidoActual.Total);
-            lblCambio.Text = $"Cambio: ${cambio:N2}";
+            Cobro_RecalcularCambio_UI(sender, e);
         }
 
 
@@ -1501,7 +1480,7 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
 
         private void lbInvArticulos_SelectedIndexChanged(object sender, EventArgs e)
         {
-            lbInvArticulos.DoubleClick += (s, e) => AgregarEntradaInventario();
+            
         }
 
 
@@ -1796,7 +1775,7 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         }
 
 
-
+        [Obsolete("Usar flujo de cobro con CFDI (btnConfirmarCobro_Click). Este método se mantiene solo por compatibilidad temporal.")]
         private void btnCobroConfirmar_Click(object? sender, EventArgs e)
         {
             if (_idPedidoActual == null)
@@ -1949,37 +1928,32 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             }
         }
 
-        //no se usa esto (y no borrar, si no, explota el programa)
 
+
+
+
+        private void dgvPedido_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+            RecalcularTotales();
+        }
+
+
+        //no se usa esto (y no borrar, si no, explota el programa)
         private void txtRutaAux_TextChanged(object sender, EventArgs e)
         {
-
         }
-
         private void dgvInvCaptura_CellContentClick(object sender, EventArgs e)
         {
-
         }
-
         private void Form1_Load_1(object sender, EventArgs e)
         {
-
         }
-
         private void btnAgregarLinea_Click(object sender, EventArgs e)
         {
-
         }
-
         private void btnIrCobro_Click(object sender, EventArgs e)
         {
-
         }
-
-       
-
-
-
         //hasta aqui lo que no se usa
     }///fin public partial class Form1 : Form
 }///fin namespace

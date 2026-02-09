@@ -1,46 +1,49 @@
-﻿using FirebirdSql.Data.FirebirdClient;
+﻿using System;
+using System.Collections.Generic;
+using System.Data;
 using System.Text.RegularExpressions;
-
+using FirebirdSql.Data.FirebirdClient;
 
 namespace PROYECTO_RESIDENCIAS
 {
-
     public static class SaeDb
     {
-        public static void ResetSaeSuffixCache() => _cachedSaeSuffix = null;
-
-
+        private static string _cachedSaeSuffix;
         public static string ConnectionString { get; private set; }
 
         /// <summary>
-        /// Inicializa la cadena de conexión para todo el app.
-        /// Llama esto una sola vez al inicio (desde FormSeleccionEmpresa).
+        /// Limpia el sufijo de empresa cacheado (INVE##). Útil si cambias de empresa SAE en runtime.
+        /// </summary>
+        public static void ResetSaeSuffixCache() => _cachedSaeSuffix = null;
+
+        /// <summary>
+        /// Inicializa la cadena de conexión para toda la app.
+        /// Llamar una sola vez al inicio (p.ej. desde Program/selección de empresa).
         /// </summary>
         public static void Initialize(string connectionString)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
-                throw new ArgumentException("ConnectionString no puede ser vacío.");
+                throw new ArgumentException("ConnectionString no puede ser vacío.", nameof(connectionString));
 
             ConnectionString = connectionString;
+            ResetSaeSuffixCache();
         }
 
         /// <summary>
-        /// Obtiene una conexión nueva (caller la cierra).
+        /// Devuelve una conexión nueva SIN abrir, usando la ConnectionString inicializada.
         /// </summary>
         public static FbConnection GetConnection()
         {
             if (string.IsNullOrWhiteSpace(ConnectionString))
-                throw new InvalidOperationException("SaeDb no ha sido inicializado. Llama Initialize() primero.");
+                throw new InvalidOperationException("SaeDb no ha sido inicializado. Llama Initialize() primero o usa GetOpenConnection().");
 
             return new FbConnection(ConnectionString);
         }
 
         /// <summary>
-        /// Prueba rápida; úsala si necesitas validar en otra parte.
+        /// Construye una conexión NUEVA (sin abrir) a partir de parámetros sueltos.
+        /// Úsala sólo cuando no quieras usar Initialize() aún.
         /// </summary>
-
-
-
         public static FbConnection CreateConnection(
             string databasePath,
             string server = "127.0.0.1",
@@ -49,7 +52,10 @@ namespace PROYECTO_RESIDENCIAS
             string password = "masterkey",
             string charset = "ISO8859_1")
         {
-            var cs = new FbConnectionStringBuilder
+            if (string.IsNullOrWhiteSpace(databasePath))
+                throw new ArgumentException("databasePath no puede ser vacío.", nameof(databasePath));
+
+            var csb = new FbConnectionStringBuilder
             {
                 DataSource = server,
                 Port = port,
@@ -59,65 +65,86 @@ namespace PROYECTO_RESIDENCIAS
                 Charset = charset,
                 Dialect = 3,
                 Pooling = true,
-                // Si usas cliente embebido x86 local, descomenta:
+                // Si usas cliente embebido x86 local, mantén esto:
                 ClientLibrary = "fbclient.dll"
             };
 
-            return new FbConnection(cs.ToString());
+            return new FbConnection(csb.ToString());
         }
 
-
-        //----------------------------------------------------------------------------------------------el original
+        /// <summary>
+        /// Prueba rápida de conexión. 
+        /// Abre la conexión si está cerrada y la vuelve a cerrar al terminar.
+        /// </summary>
         public static void TestConnection(FbConnection conn)
         {
-            conn.Open();
-            using var cmd = new FbCommand("SELECT 1 FROM RDB$DATABASE", conn);
-            var o = cmd.ExecuteScalar();
-            if (Convert.ToInt32(o) != 1)
-                throw new Exception("Prueba SELECT 1 falló.");
+            if (conn == null) throw new ArgumentNullException(nameof(conn));
 
-            // Prueba mínima contra una tabla típica de SAE 9 (ajústala si tu esquema usa otro nombre)
+            bool mustClose = conn.State != ConnectionState.Open;
+            if (mustClose)
+                conn.Open();
+
             try
             {
-                var invTable = GetTableName(conn, "INVE");              // ← INVE##
-                using var cmd2 = new FirebirdSql.Data.FirebirdClient.FbCommand(
-                    $"SELECT FIRST 1 CVE_ART, DESCR FROM {invTable}", conn);
-                using var r = cmd2.ExecuteReader();
-                // ok si no truena
-            }
-            catch
-            {
-                // si no existe INVE##, no lo consideres fatal (ya probamos SELECT 1 antes)
+                using (var cmd = new FbCommand("SELECT 1 FROM RDB$DATABASE", conn))
+                {
+                    var o = cmd.ExecuteScalar();
+                    if (Convert.ToInt32(o) != 1)
+                        throw new Exception("Prueba SELECT 1 falló.");
+                }
+
+                // Prueba mínima contra una tabla típica de SAE 9 (INVE##)
+                try
+                {
+                    var invTable = GetTableName(conn, "INVE"); // ← INVE##
+                    using var cmd2 = new FbCommand(
+                        $"SELECT FIRST 1 CVE_ART, DESCR FROM {invTable}",
+                        conn);
+                    using var _ = cmd2.ExecuteReader();
+                    // ok si no truena
+                }
+                catch
+                {
+                    // Si no existe INVE##, no lo consideres fatal (ya probamos SELECT 1 antes)
+                }
             }
             finally
             {
-                conn.Close();
+                if (mustClose)
+                    conn.Close();
             }
-
         }
-        //---------------------------------------------------------------------------------------------- el original
 
-        private static string _cachedSaeSuffix;
-
+        /// <summary>
+        /// Obtiene el sufijo de empresa de SAE (p.ej. "07" para tablas INVE07, KITS07).
+        /// Resultado cacheado en memoria.
+        /// </summary>
         public static string GetCompanySuffix(FbConnection con, FbTransaction tx = null)
         {
             if (!string.IsNullOrEmpty(_cachedSaeSuffix))
                 return _cachedSaeSuffix;
 
-            // Busca nombres tipo INVE##
-            using var cmd = new FbCommand(
+            if (con == null) throw new ArgumentNullException(nameof(con));
+
+            const string sql =
                 "SELECT TRIM(RDB$RELATION_NAME) " +
                 "FROM RDB$RELATIONS " +
                 "WHERE RDB$SYSTEM_FLAG = 0 AND RDB$VIEW_BLR IS NULL " +
-                "AND RDB$RELATION_NAME STARTING WITH 'INVE'", con);
+                "AND RDB$RELATION_NAME STARTING WITH 'INVE'";
+
+            using var cmd = tx == null
+                ? new FbCommand(sql, con)
+                : new FbCommand(sql, con, tx);
 
             using var rd = cmd.ExecuteReader();
             var posibles = new List<string>();
+
             while (rd.Read())
             {
                 var name = rd.GetString(0).Trim();   // p.ej. INVE07
                 var m = Regex.Match(name, @"^INVE(\d{2})$");
-                if (m.Success) posibles.Add(m.Groups[1].Value);
+                if (m.Success)
+                    posibles.Add(m.Groups[1].Value);
             }
 
             if (posibles.Count == 0)
@@ -129,35 +156,45 @@ namespace PROYECTO_RESIDENCIAS
         }
 
         public static string GetTableName(FbConnection con, string baseName)
-    => GetTableName(con, baseName, null);   // compat: llamadas antiguas
+            => GetTableName(con, baseName, null);
 
-        public static string GetTableName(FbConnection con, string baseName, FbTransaction tx /* opcional */)
+        /// <summary>
+        /// Resuelve nombres reales con sufijo (p.ej. "INVE" -> "INVE01") consultando RDB$RELATIONS.
+        /// Usa el sufijo de empresa detectado por GetCompanySuffix.
+        /// </summary>
+        public static string GetTableName(FbConnection con, string baseName, FbTransaction tx)
         {
-            // IMPORTANTE: si GetCompanySuffix hace SELECTs, pásale también 'tx'
+            if (con == null) throw new ArgumentNullException(nameof(con));
+            if (string.IsNullOrWhiteSpace(baseName))
+                throw new ArgumentException("baseName no puede ser vacío.", nameof(baseName));
+
             var sfx = GetCompanySuffix(con, tx);   // ej. "07"
             var candidato = baseName + sfx;        // ej. "INVE07"
 
+            const string sqlCheck = @"
+SELECT COUNT(*)
+FROM RDB$RELATIONS
+WHERE RDB$SYSTEM_FLAG = 0 AND TRIM(RDB$RELATION_NAME) = @t";
+
             using (var cmd = tx == null
-                ? new FbCommand(@"SELECT COUNT(*) 
-                          FROM RDB$RELATIONS 
-                          WHERE RDB$SYSTEM_FLAG=0 AND TRIM(RDB$RELATION_NAME)=@t", con)
-                : new FbCommand(@"SELECT COUNT(*) 
-                          FROM RDB$RELATIONS 
-                          WHERE RDB$SYSTEM_FLAG=0 AND TRIM(RDB$RELATION_NAME)=@t", con, tx))
+                ? new FbCommand(sqlCheck, con)
+                : new FbCommand(sqlCheck, con, tx))
             {
                 cmd.Parameters.Add("@t", FbDbType.VarChar).Value = candidato;
                 var count = Convert.ToInt32(cmd.ExecuteScalar());
-                if (count == 1) return candidato;
+                if (count == 1)
+                    return candidato;
             }
 
-            // Fallback: cualquier tabla que empiece por baseName
+            // Fallback: cualquier tabla que empiece por baseName y termine en dos dígitos
+            const string sqlPref = @"
+SELECT TRIM(RDB$RELATION_NAME)
+FROM RDB$RELATIONS 
+WHERE RDB$SYSTEM_FLAG=0 AND RDB$RELATION_NAME STARTING WITH @pref";
+
             using (var cmd2 = tx == null
-                ? new FbCommand(@"SELECT TRIM(RDB$RELATION_NAME)
-                          FROM RDB$RELATIONS 
-                          WHERE RDB$SYSTEM_FLAG=0 AND RDB$RELATION_NAME STARTING WITH @pref", con)
-                : new FbCommand(@"SELECT TRIM(RDB$RELATION_NAME)
-                          FROM RDB$RELATIONS 
-                          WHERE RDB$SYSTEM_FLAG=0 AND RDB$RELATION_NAME STARTING WITH @pref", con, tx))
+                ? new FbCommand(sqlPref, con)
+                : new FbCommand(sqlPref, con, tx))
             {
                 cmd2.Parameters.Add("@pref", FbDbType.VarChar).Value = baseName;
                 using var rd = cmd2.ExecuteReader();
@@ -172,26 +209,81 @@ namespace PROYECTO_RESIDENCIAS
             throw new Exception($"No encontré la tabla para base '{baseName}'.");
         }
 
+        /// <summary>
+        /// Devuelve una conexión ABIERTA.
+        /// Si ya se inicializó ConnectionString, la usa.
+        /// De lo contrario, lee CONFIG.SAE_FDB desde la BD Auxiliar.
+        /// </summary>
+        public static FbConnection GetOpenConnection()
+        {
+            // 1) Si ya inicializaste SaeDb.Initialize(connectionString)
+            if (!string.IsNullOrWhiteSpace(ConnectionString))
+            {
+                var c = new FbConnection(ConnectionString);
+                c.Open();
+                return c;
+            }
 
+            // 2) Fallback: lee SAE_FDB de la BD Aux y arma la conexión
+            string auxPath;
+            using (var aux = AuxDbInitializer.EnsureCreated(out auxPath, charset: "ISO8859_1"))
+            using (var cmd = new FbCommand("SELECT VALOR FROM CONFIG WHERE CLAVE='SAE_FDB'", aux))
+            {
+                var o = cmd.ExecuteScalar();
+                var saePath = o?.ToString();
+                if (string.IsNullOrWhiteSpace(saePath))
+                    throw new InvalidOperationException("CONFIG.SAE_FDB está vacío. Selecciona la empresa de SAE primero.");
 
-        //aqui empiezan los nuevos cambios, asi que, atencion, por si las dudas, todo lo que esta depues de esto, es a parter de las 10:10 am del 10 de octubre (mes 10 xD)
+                var con = CreateConnection(
+                    databasePath: saePath,
+                    server: "127.0.0.1",
+                    port: 3050,
+                    user: "SYSDBA",
+                    password: "masterkey",
+                    charset: "ISO8859_1");
+                con.Open();
+                return con;
+            }
+        }
+
+        /// <summary>
+        /// Devuelve la descripción de un artículo en INVE##; si no existe, devuelve la clave.
+        /// </summary>
+        public static string ObtenerDescripcionArticulo(string clave)
+        {
+            if (string.IsNullOrWhiteSpace(clave))
+                throw new ArgumentException("La clave no puede ser vacía.", nameof(clave));
+
+            using var con = GetOpenConnection();
+            string tINVE = GetTableName(con, "INVE");
+
+            using var cmd = new FbCommand($"SELECT DESCR FROM {tINVE} WHERE CVE_ART=@C", con);
+            cmd.Parameters.Add("@C", FbDbType.VarChar, 30).Value = clave;
+            var o = cmd.ExecuteScalar();
+            return o?.ToString()?.Trim() ?? clave;
+        }
+
+        // ------------------------- Dominios: Platillos -------------------------
 
         public class PlatilloDto
         {
-            public string Clave { get; set; }
-            public string Descripcion { get; set; }
-            public string Unidad { get; set; }
+            public string Clave { get; set; } = string.Empty;
+            public string Descripcion { get; set; } = string.Empty;
+            public string Unidad { get; set; } = string.Empty;
             public decimal Precio { get; set; }
             public decimal Existencia { get; set; }
-            public string Status { get; set; }
+            public string Status { get; set; } = string.Empty;
         }
 
+        /// <summary>
+        /// Lista platillos (artículos) desde SAE, con precio y existencia por almacén.
+        /// </summary>
         public static List<PlatilloDto> ListarPlatillos(
-    int listaPrecio = 1,
-    int? almacen = 1,
-    string clavePrefix = "Prep",   // por defecto, solo CVE_ART que comiencen con PREP
-    string linProd = "Prep"          // opcional, por si luego filtras por línea
-)
+            int listaPrecio = 1,
+            int? almacen = 1,
+            string clavePrefix = "Prep",   // por defecto, solo CVE_ART que comiencen con PREP
+            string linProd = "Prep"        // opcional, por si luego filtras por línea
+        )
         {
             using var conn = GetOpenConnection();
 
@@ -199,14 +291,12 @@ namespace PROYECTO_RESIDENCIAS
             string tPXP = GetTableName(conn, "PRECIO_X_PROD");
             string tMULT = GetTableName(conn, "MULT");
 
-
-            // WHERE dinámico (ahora case-insensitive)
+            // WHERE dinámico (case-insensitive para clave)
             var where = "WHERE I.STATUS = 'A' ";
             if (!string.IsNullOrWhiteSpace(clavePrefix))
-                where += "AND UPPER(I.CVE_ART) STARTING WITH @PFX ";  // <- clave
+                where += "AND UPPER(I.CVE_ART) STARTING WITH @PFX ";
             if (!string.IsNullOrWhiteSpace(linProd))
                 where += "AND I.LIN_PROD = @LIN ";
-
 
             var sql = $@"
 SELECT
@@ -226,14 +316,14 @@ LEFT JOIN {tMULT} M
 {where}
 ORDER BY I.DESCR";
 
-            using var cmd = new FirebirdSql.Data.FirebirdClient.FbCommand(sql, conn);
+            using var cmd = new FbCommand(sql, conn);
             cmd.Parameters.Add("@LISTA", FbDbType.Integer).Value = listaPrecio;
             cmd.Parameters.Add("@ALM", FbDbType.Integer).Value = (object?)almacen ?? DBNull.Value;
+
             if (!string.IsNullOrWhiteSpace(clavePrefix))
-                cmd.Parameters.Add("@PFX", FbDbType.VarChar, 32).Value = clavePrefix.ToUpperInvariant(); // <- en mayúsculas
+                cmd.Parameters.Add("@PFX", FbDbType.VarChar, 32).Value = clavePrefix.ToUpperInvariant();
             if (!string.IsNullOrWhiteSpace(linProd))
                 cmd.Parameters.Add("@LIN", FbDbType.VarChar, 20).Value = linProd;
-
 
             var list = new List<PlatilloDto>();
             using var rd = cmd.ExecuteReader();
@@ -250,94 +340,14 @@ ORDER BY I.DESCR";
                 });
             }
 
-            return list;  // ← clave: siempre devolvemos la lista
+            return list;
         }
 
-
-
-        /// <summary>
-        /// Resuelve nombres reales con sufijo (p.ej. "INVE" -> "INVE01") consultando RDB$RELATIONS.
-        /// Si ya tienes un helper equivalente, usa ese y borra este.
-        /// </summary>
-        private static string ResolveTableName(FbConnection conn, string baseName)
-        {
-            // Busca la primera coincidencia exacta con sufijo 2 dígitos (01..99) o sin sufijo.
-            using var cmd = new FbCommand(@"
-        SELECT TRIM(RDB$RELATION_NAME)
-        FROM RDB$RELATIONS
-        WHERE RDB$SYSTEM_FLAG = 0
-          AND (RDB$RELATION_NAME = @BN
-               OR RDB$RELATION_NAME STARTING WITH @BN)
-        ORDER BY RDB$RELATION_NAME", conn);
-
-            cmd.Parameters.Add("@BN", FbDbType.VarChar, 31).Value = baseName;
-            using var rd = cmd.ExecuteReader();
-            string? found = null;
-            while (rd.Read())
-            {
-                var name = rd.GetString(0).Trim();
-                // Preferimos el patrón con sufijo de 2 dígitos si existe (INVE01, PRECIO_X_PROD01, MULT01, ...)
-                if (name.Equals(baseName, StringComparison.OrdinalIgnoreCase))
-                    found ??= name;
-                if (name.Length == baseName.Length + 2 &&
-                    int.TryParse(name.Substring(baseName.Length, 2), out _))
-                {
-                    found = name;
-                    break;
-                }
-            }
-            if (found == null)
-                throw new InvalidOperationException($"No se encontró la tabla para '{baseName}??' en la base de SAE.");
-            return found;
-        }
-
-        public static FbConnection GetOpenConnection()
-        {
-            // 1) Si ya inicializaste SaeDb.Initialize(connectionString)
-            if (!string.IsNullOrWhiteSpace(ConnectionString))
-            {
-                var c = new FbConnection(ConnectionString);
-                c.Open();
-                return c;
-            }
-
-            // 2) Fallback: lee SAE_FDB de la BD Aux y arma la conexión
-            string auxPath;
-            using (var aux = AuxDbInitializer.EnsureCreated(out auxPath, charset: "ISO8859_1"))
-            using (var cmd = new FbCommand("SELECT VALOR FROM CONFIG WHERE CLAVE='SAE_FDB'", aux))
-            {
-                var o = cmd.ExecuteScalar();
-                var saePath = o?.ToString();
-                if (string.IsNullOrWhiteSpace(saePath))
-                    throw new InvalidOperationException("CONFIG.SAE_FDB está vacío. Selecciona la empresa primero.");
-
-                var con = CreateConnection(
-                    databasePath: saePath,
-                    server: "127.0.0.1",
-                    port: 3050,
-                    user: "SYSDBA",
-                    password: "masterkey",
-                    charset: "ISO8859_1");
-                con.Open();
-                return con;
-            }
-        }
-        public static string ObtenerDescripcionArticulo(string clave)
-        {
-            using var con = GetOpenConnection();
-            string tINVE = GetTableName(con, "INVE");
-            using var cmd = new FbCommand($"SELECT DESCR FROM {tINVE} WHERE CVE_ART=@C", con);
-            cmd.Parameters.Add("@C", FbDbType.VarChar, 30).Value = clave;
-            var o = cmd.ExecuteScalar();
-            return o?.ToString()?.Trim() ?? clave;
-        }
-
-
-
+        // ------------------------- Dominios: Recetas (KITS) -------------------------
 
         public class RecetaItemDto
         {
-            public string Clave { get; set; }          // CVE_PROD
+            public string Clave { get; set; }          // CVE_PROD (ingrediente)
             public string Descripcion { get; set; }    // INVE.DESCR
             public string Unidad { get; set; }         // INVE.UNI_MED
             public decimal Porcentaje { get; set; }    // KITS.PORCEN
@@ -347,6 +357,9 @@ ORDER BY I.DESCR";
 
         public static List<RecetaItemDto> ListarReceta(string cvePlatillo, int? almacen = 1)
         {
+            if (string.IsNullOrWhiteSpace(cvePlatillo))
+                throw new ArgumentException("La clave del platillo no puede ser vacía.", nameof(cvePlatillo));
+
             using var conn = GetOpenConnection();
             string tKITS = GetTableName(conn, "KITS");     // KITS01..KITS99
             string tINVE = GetTableName(conn, "INVE");
@@ -387,7 +400,5 @@ ORDER BY K.CVE_PROD";
             }
             return list;
         }
-
-
     }
 }
