@@ -100,7 +100,20 @@ namespace PROYECTO_RESIDENCIAS
             // Extra: que Enter dispare AbrirTurno y Esc cierre
             AcceptButton = btnAbrir;
             CancelButton = btnSalir;
-        }
+        
+
+            UiStyle.Apply(this);
+            UiFields.Apply(this);
+            this.AcceptButton = btnUsar;
+            this.CancelButton = btnSalir;
+
+            UiHints.Attach(this, new (Control control, string hint)[]
+            {
+                (btnUsar, "Enter"),
+                (btnAbrir, "F2"),
+                (btnSalir, "Esc"),
+            });
+}
 
         private void FormSeleccionTurno_Load(object? sender, EventArgs e)
         {
@@ -185,5 +198,17 @@ namespace PROYECTO_RESIDENCIAS
                 );
             }
         }
-    }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == Keys.F2)
+            { btnAbrir.PerformClick(); return true; }
+
+            if (keyData == Keys.Escape)
+            { Close(); return true; }
+
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+}
 }

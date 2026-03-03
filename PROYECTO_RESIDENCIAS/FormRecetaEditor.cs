@@ -17,6 +17,28 @@ namespace PROYECTO_RESIDENCIAS
         public FormRecetaEditor()
         {
             InitializeComponent();
+
+            // Layout responsive (sin encimados) para que la ventana no “desperdicie” espacio
+            // y los botones no se monten unos sobre otros.
+            RefactorLayout();
+
+            FormBorderStyle = FormBorderStyle.Sizable;
+            MinimumSize = new Size(900, 600);
+
+            UiStyle.Apply(this);
+            UiFields.Apply(this);
+
+            UiHints.Attach(this, new System.Collections.Generic.Dictionary<string, string>
+            {
+                ["cboPlatillo"] = "Ctrl+F — Buscar",
+                ["btnNuevoPlatillo"] = "Ctrl+N",
+                ["btnAgregarFila"] = "Ins",
+                ["btnEliminarProducto"] = "Del",
+                ["btnEliminarTodo"] = "Ctrl+Del",
+                ["btnReenumerar"] = "F2",
+                ["btnGuardar"] = "Ctrl+S",
+            });
+
             Shown += (_, __) =>
             {
                 try
@@ -29,6 +51,126 @@ namespace PROYECTO_RESIDENCIAS
                         "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 }
             };
+        }
+
+        private void RefactorLayout()
+        {
+            try
+            {
+                SuspendLayout();
+
+                // Guardar referencias (son los mismos controles del Designer)
+                var header = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Top,
+                    ColumnCount = 3,
+                    RowCount = 1,
+                    AutoSize = true,
+                    BackColor = Color.Transparent,
+                    Margin = new Padding(0, 0, 0, 10)
+                };
+                header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+                header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+                header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+                lblPlatillo.Dock = DockStyle.Fill;
+                lblPlatillo.Margin = new Padding(0, 6, 10, 0);
+
+                cboPlatillo.Dock = DockStyle.Fill;
+                cboPlatillo.Margin = new Padding(0, 0, 10, 0);
+
+                var flHeaderBtns = new FlowLayoutPanel
+                {
+                    Dock = DockStyle.Fill,
+                    AutoSize = true,
+                    WrapContents = false,
+                    FlowDirection = FlowDirection.LeftToRight,
+                    BackColor = Color.Transparent,
+                    Margin = new Padding(0)
+                };
+                btnNuevoPlatillo.MinimumSize = new Size(140, 44);
+                btnEliminarProducto.MinimumSize = new Size(170, 44);
+                flHeaderBtns.Controls.Add(btnNuevoPlatillo);
+                flHeaderBtns.Controls.Add(btnEliminarProducto);
+
+                header.Controls.Add(lblPlatillo, 0, 0);
+                header.Controls.Add(cboPlatillo, 1, 0);
+                header.Controls.Add(flHeaderBtns, 2, 0);
+
+                dgvIngredientes.Dock = DockStyle.Fill;
+                dgvIngredientes.Margin = new Padding(0);
+
+                // Footer: acciones + total
+                var footer = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Bottom,
+                    ColumnCount = 2,
+                    RowCount = 1,
+                    AutoSize = true,
+                    BackColor = Color.Transparent,
+                    Margin = new Padding(0, 10, 0, 0)
+                };
+                footer.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+                footer.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+                var flActions = new FlowLayoutPanel
+                {
+                    Dock = DockStyle.Fill,
+                    AutoSize = true,
+                    WrapContents = true,
+                    FlowDirection = FlowDirection.LeftToRight,
+                    BackColor = Color.Transparent,
+                    Margin = new Padding(0)
+                };
+
+                nudLinea.MinimumSize = new Size(90, 40);
+                nudLinea.Margin = new Padding(0, 6, 10, 0);
+                chkAutoEnumerar.Margin = new Padding(0, 10, 16, 0);
+
+                btnAgregarFila.MinimumSize = new Size(130, 44);
+                btnReenumerar.MinimumSize = new Size(140, 44);
+                btnEliminarTodo.MinimumSize = new Size(150, 44);
+                btnGuardar.MinimumSize = new Size(130, 44);
+
+                flActions.Controls.Add(nudLinea);
+                flActions.Controls.Add(chkAutoEnumerar);
+                flActions.Controls.Add(btnAgregarFila);
+                flActions.Controls.Add(btnReenumerar);
+                flActions.Controls.Add(btnEliminarTodo);
+                flActions.Controls.Add(btnGuardar);
+
+                lblTotal.AutoSize = true;
+                lblTotal.Anchor = AnchorStyles.Right;
+                lblTotal.Margin = new Padding(20, 12, 0, 0);
+
+                footer.Controls.Add(flActions, 0, 0);
+                footer.Controls.Add(lblTotal, 1, 0);
+
+                // Root
+                Controls.Clear();
+                var root = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill,
+                    ColumnCount = 1,
+                    RowCount = 3,
+                    Padding = new Padding(12),
+                    BackColor = Color.Transparent
+                };
+                root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+                root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+                root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+                root.Controls.Add(header, 0, 0);
+                root.Controls.Add(dgvIngredientes, 0, 1);
+                root.Controls.Add(footer, 0, 2);
+
+                Controls.Add(root);
+                ResumeLayout(true);
+            }
+            catch
+            {
+                // nunca romper la ventana por layout
+            }
         }
 
         private void Init()
@@ -385,7 +527,7 @@ ORDER BY K.CVE_PROD";
             // Toma datos ya validados/normalizados desde el form
             var cveArt = f.CveArt.Trim();           // ya empieza con "Prep" y <=16
             var descr = f.Descripcion.Trim();      // <=40
-            var um = (f.Unidad ?? "PZA").Trim();
+            var um = (f.Unidad ?? "pz").Trim();
 
             try
             {
@@ -415,6 +557,38 @@ VALUES (@CVE_ART, @DESCR, @UNI_MED, @TIPO_ELE, NULL)";
                     cmdIns.Parameters.Add("@UNI_MED", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 10).Value = um;
                     cmdIns.Parameters.Add("@TIPO_ELE", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 1).Value = "K";
                     cmdIns.ExecuteNonQuery();
+                }
+
+                // 2.1) Asignar valores solicitados por el flujo GastroSAE
+                // LIN_PROD = "Prep"   |   CON_SERIE = "N"
+                // (se hace con verificación de columna para evitar errores si la BD no las trae)
+                bool ColumnExists(string tableName, string columnName)
+                {
+                    using var cmdCol = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                        @"SELECT COUNT(*) FROM RDB$RELATION_FIELDS WHERE RDB$RELATION_NAME = @T AND RDB$FIELD_NAME = @C", con, tx);
+                    cmdCol.Parameters.Add("@T", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 31)
+                        .Value = (tableName ?? string.Empty).Trim().ToUpperInvariant();
+                    cmdCol.Parameters.Add("@C", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 31)
+                        .Value = (columnName ?? string.Empty).Trim().ToUpperInvariant();
+                    return Convert.ToInt32(cmdCol.ExecuteScalar()) > 0;
+                }
+
+                var hasLinProd = ColumnExists(tINVE, "LIN_PROD");
+                var hasConSerie = ColumnExists(tINVE, "CON_SERIE");
+                if (hasLinProd || hasConSerie)
+                {
+                    var sets = new System.Collections.Generic.List<string>();
+                    if (hasLinProd) sets.Add("LIN_PROD = @LIN_PROD");
+                    if (hasConSerie) sets.Add("CON_SERIE = @CON_SERIE");
+
+                    using var cmdUpd = new FirebirdSql.Data.FirebirdClient.FbCommand(
+                        $@"UPDATE {tINVE} SET {string.Join(", ", sets)} WHERE CVE_ART = @CVE_ART", con, tx);
+                    cmdUpd.Parameters.Add("@CVE_ART", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 30).Value = cveArt;
+                    if (hasLinProd)
+                        cmdUpd.Parameters.Add("@LIN_PROD", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 20).Value = "Prep";
+                    if (hasConSerie)
+                        cmdUpd.Parameters.Add("@CON_SERIE", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 1).Value = "N";
+                    cmdUpd.ExecuteNonQuery();
                 }
 
                 tx.Commit();
@@ -611,5 +785,36 @@ VALUES (@CVE_ART, @DESCR, @UNI_MED, @TIPO_ELE, NULL)";
 
         }
         //hasta aqui lo que no se borra
+
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == (Keys.Control | Keys.S))
+            { btnGuardar.PerformClick(); return true; }
+
+            if (keyData == (Keys.Control | Keys.N))
+            { btnNuevoPlatillo.PerformClick(); return true; }
+
+            if (keyData == Keys.Insert)
+            { btnAgregarFila.PerformClick(); return true; }
+
+            if (keyData == Keys.F2)
+            { btnReenumerar.PerformClick(); return true; }
+
+            if (keyData == (Keys.Control | Keys.Delete))
+            { btnEliminarTodo.PerformClick(); return true; }
+
+            if (keyData == Keys.Delete && dgvIngredientes.Focused)
+            { btnEliminarProducto.PerformClick(); return true; }
+
+            if (keyData == (Keys.Control | Keys.F))
+            { cboPlatillo.Focus(); return true; }
+
+            if (keyData == Keys.Escape)
+            { Close(); return true; }
+
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
     }
 }

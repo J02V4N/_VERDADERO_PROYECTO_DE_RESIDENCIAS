@@ -10,13 +10,13 @@ namespace PROYECTO_RESIDENCIAS
 
         // Clave final: prefijo fijo + parte editable del textbox
         public string CveArt
-            => (PrefijoClave + (txtClave.Text ?? string.Empty).Trim()).ToUpperInvariant();
+            => (PrefijoClave + (txtClave.Text ?? string.Empty).Trim());
 
         public string Descripcion
-            => (txtDescripcion.Text ?? string.Empty).Trim().ToUpperInvariant();
+            => (txtDescripcion.Text ?? string.Empty).Trim();
 
         public string Unidad
-            => (txtUnidad.Text ?? string.Empty).Trim().ToUpperInvariant();
+            => (txtUnidad.Text ?? string.Empty).Trim();
 
         public string ClaveCompleta => (lblPrefijo.Text ?? "") + (txtClave.Text ?? "");
       
@@ -25,15 +25,30 @@ namespace PROYECTO_RESIDENCIAS
         {
             InitializeComponent();
 
+            UiStyle.Apply(this);
+            UiFields.Apply(this);
+            this.AcceptButton = btnOk;
+            this.CancelButton = btnCancel;
+
+            UiHints.Attach(this, new (Control control, string hint)[]
+            {
+                (btnOk, "Enter"),
+                (btnCancel, "Esc"),
+            });
+
             // Prefijo visual fijo
             lblPrefijo.Text = PrefijoClave;
 
-            // Opcional: ajustar posición del textbox con base en el ancho real del label
-            var loc = txtClave.Location;
-            txtClave.Location = new Point(lblPrefijo.Right + 4, loc.Y);
-
             // Parte editable (sufijo) máx 12 caracteres
             txtClave.MaxLength = 12;
+
+            // Descripción máx 40 caracteres (además de la validación)
+            txtDescripcion.MaxLength = 40;
+
+            // Unidad fija: "pz" (no editable)
+            txtUnidad.Text = "pz";
+            txtUnidad.ReadOnly = true;
+            txtUnidad.TabStop = false;
 
             // Evitar suscripciones duplicadas si el diseñador ya lo había conectado
             btnOk.Click += BtnOk_Click;
@@ -42,7 +57,7 @@ namespace PROYECTO_RESIDENCIAS
         private void BtnOk_Click(object sender, EventArgs e)
         {
             // Parte editable después del prefijo
-            var parte = (txtClave.Text ?? string.Empty).Trim().ToUpperInvariant();
+            var parte = (txtClave.Text ?? string.Empty).Trim();
 
             // 1) Debe haber algo después del prefijo
             if (parte.Length == 0)
@@ -115,17 +130,13 @@ namespace PROYECTO_RESIDENCIAS
                 return;
             }
 
-            // Unidad por defecto
-            var um = (txtUnidad.Text ?? string.Empty).Trim();
-            if (string.IsNullOrWhiteSpace(um))
-            {
-                um = "PZA";
-            }
+            // Unidad fija
+            var um = "pz";
 
             // Normalizar valores en los controles para quien los lea después
             txtClave.Text = parte;                 // solo la parte editable
-            txtDescripcion.Text = descr.ToUpperInvariant();
-            txtUnidad.Text = um.ToUpperInvariant();
+            txtDescripcion.Text = descr;
+            txtUnidad.Text = um;
 
             // No se toca DialogResult aquí: si el botón tiene DialogResult=OK
             // en el diseñador, la ventana se cerrará; si no, deberás asignarlo afuera.

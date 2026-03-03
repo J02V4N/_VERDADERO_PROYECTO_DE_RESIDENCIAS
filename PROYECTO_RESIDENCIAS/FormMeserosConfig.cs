@@ -9,22 +9,24 @@ namespace PROYECTO_RESIDENCIAS
         private readonly DataGridView dgv;
         private readonly Button btnAgregar, btnEditar, btnEliminar, btnCerrar;
 
+        private readonly TableLayoutPanel _root;
+
         private readonly BindingList<AuxRepo.MeseroDto> _meseros = new BindingList<AuxRepo.MeseroDto>();
 
         public FormMeserosConfig()
         {
             Text = "Meseros (BD Aux)";
             StartPosition = FormStartPosition.CenterParent;
-            Width = 520;
-            Height = 420;
-            FormBorderStyle = FormBorderStyle.FixedDialog;
-            MaximizeBox = false;
+            Width = 720;
+            Height = 520;
+            MinimumSize = new System.Drawing.Size(640, 420);
+            FormBorderStyle = FormBorderStyle.Sizable;
+            MaximizeBox = true;
             MinimizeBox = false;
 
             dgv = new DataGridView
             {
-                Dock = DockStyle.Top,
-                Height = 300,
+                Dock = DockStyle.Fill,
                 ReadOnly = true,
                 AllowUserToAddRows = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
@@ -54,19 +56,94 @@ namespace PROYECTO_RESIDENCIAS
                 Width = 80
             });
 
-            btnAgregar = new Button { Text = "Agregar", Left = 20, Top = 320, Width = 90 };
-            btnEditar = new Button { Text = "Editar", Left = 120, Top = 320, Width = 90 };
-            btnEliminar = new Button { Text = "Eliminar", Left = 220, Top = 320, Width = 90 };
-            btnCerrar = new Button { Text = "Cerrar", Left = 400, Top = 320, Width = 90 };
+            btnAgregar = new Button { Text = "Agregar", MinimumSize = new System.Drawing.Size(120, 44) };
+            btnEditar = new Button { Text = "Editar", MinimumSize = new System.Drawing.Size(120, 44) };
+            btnEliminar = new Button { Text = "Eliminar", MinimumSize = new System.Drawing.Size(120, 44) };
+            btnCerrar = new Button { Text = "Cerrar", MinimumSize = new System.Drawing.Size(120, 44) };
 
             btnAgregar.Click += (s, e) => Agregar();
             btnEditar.Click += (s, e) => Editar();
             btnEliminar.Click += (s, e) => Eliminar();
             btnCerrar.Click += (s, e) => Close();
 
-            Controls.AddRange(new Control[] { dgv, btnAgregar, btnEditar, btnEliminar, btnCerrar });
+            // ===== Layout: sin espacios muertos =====
+            _root = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 1,
+                RowCount = 2,
+                Padding = new Padding(12),
+                BackColor = System.Drawing.Color.Transparent
+            };
+            _root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            _root.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            var bottom = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 1,
+                AutoSize = true,
+                BackColor = System.Drawing.Color.Transparent
+            };
+            bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            bottom.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+
+            var flOps = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                WrapContents = false,
+                FlowDirection = FlowDirection.LeftToRight,
+                Margin = new Padding(0)
+            };
+            flOps.Controls.Add(btnAgregar);
+            flOps.Controls.Add(btnEditar);
+            flOps.Controls.Add(btnEliminar);
+
+            var flClose = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                WrapContents = false,
+                FlowDirection = FlowDirection.RightToLeft,
+                Margin = new Padding(0)
+            };
+            flClose.Controls.Add(btnCerrar);
+
+            bottom.Controls.Add(flOps, 0, 0);
+            bottom.Controls.Add(flClose, 1, 0);
+
+            _root.Controls.Add(dgv, 0, 0);
+            _root.Controls.Add(bottom, 0, 1);
+            Controls.Add(_root);
 
             Load += (s, e) => Cargar();
+        
+
+            UiStyle.Apply(this);
+            UiFields.Apply(this);
+            this.CancelButton = btnCerrar;
+
+            UiHints.Attach(this, new (Control control, string hint)[]
+            {
+                (btnAgregar, "Ins"),
+                (btnEditar, "Enter"),
+                (btnEliminar, "Del"),
+                (btnCerrar, "Esc"),
+            });
+
+            // Atajos reales (para que el hint no sea decorativo)
+            KeyPreview = true;
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == Keys.Insert) { Agregar(); return true; }
+            if (keyData == Keys.Enter && dgv.Focused) { Editar(); return true; }
+            if (keyData == Keys.Delete && dgv.Focused) { Eliminar(); return true; }
+            if (keyData == Keys.Escape) { Close(); return true; }
+            return base.ProcessCmdKey(ref msg, keyData);
         }
 
         private AuxRepo.MeseroDto? Seleccionado()
@@ -243,5 +320,6 @@ namespace PROYECTO_RESIDENCIAS
                 return false;
             }
         }
-    }
+
+}
 }

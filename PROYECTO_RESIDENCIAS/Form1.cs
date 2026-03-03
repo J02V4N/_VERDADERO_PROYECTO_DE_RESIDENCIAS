@@ -105,6 +105,72 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
             InitializeComponent();
 
+            ApplyUiCopy();
+
+            // Refactor de layout (responsive real con TableLayout/SplitContainer)
+            UiRefactorMain.Apply(this);
+
+
+            // Estilo (touch + accesibilidad)
+            UiStyle.Apply(this);
+
+            // Placeholders / descripciones
+            UiFields.Apply(this);
+
+            // Leyendas de atajos (shortcuts) sobre los controles clave
+            UiHints.Attach(this, new Dictionary<string, string>
+            {
+                // Mesas
+                ["dgvMesas"] = "Mesas • Enter — Abrir",
+                ["btnAbrirMesa"] = "Enter",
+                ["btnAsignarMesero"] = "Ctrl+M",
+                ["btnLiberarMesa"] = "Ctrl+L",
+
+                // Pedido
+                ["txtBuscarPlatillo"] = "Buscar platillo • Ctrl+K",
+                ["lbPlatillos"] = "Platillos • Enter — Agregar",
+                ["btnQuitarLinea"] = "Del / Ctrl+D",
+                ["dgvPedido"] = "Pedido • Del / Ctrl+D — Quitar",
+                ["dgvReceta"] = "Receta • Solo lectura",
+                ["btnIrCobro"] = "Ctrl+Enter / F5",
+
+                // Cobro
+                ["btnCobroConfirmar"] = "Enter / Ctrl+Enter",
+                ["btnCobroCancelar"] = "Esc",
+                ["txtCobroEfectivo"] = "Alt+E",
+                ["txtCobroTarjeta"] = "Alt+T",
+                ["txtCobroRef"] = "Alt+R",
+                ["txtRFC"] = "RFC (CFDI)",
+                ["txtRazon"] = "Razón social (CFDI)",
+                ["cboUsoCFDI"] = "Uso CFDI",
+                ["cboMetodoPago"] = "Método de pago",
+                ["cboFormaPago"] = "Forma de pago",
+
+                // Inventario
+                // txtInvBuscar usa placeholder para no encimar el botón “Refrescar”
+                ["lbInvArticulos"] = "Artículos SAE • Enter — Agregar",
+                ["btnInvAgregar"] = "Ins / Ctrl+N",
+                ["btnInvEliminar"] = "Del / Ctrl+D",
+                ["btnInvLimpiar"] = "Ctrl+L",
+                ["btnInvGuardarAux"] = "Ctrl+S",
+                ["btnInvRefrescar"] = "F5",
+                ["chkInvSimularBascula"] = "Báscula • Ctrl+B",
+                ["txtInvPesoGr"] = "Peso (gr)",
+                ["txtInvCostoKg"] = "Costo por kg",
+                ["dgvInvCaptura"] = "Captura • Del — Eliminar",
+
+                // Config
+                ["txtRutaSae"] = "Ruta SAE",
+                ["txtRutaAux"] = "Ruta AUX",
+                ["cboImpresora"] = "Impresora tickets",
+                ["txtPuertoCom"] = "Puerto COM",
+                ["cboAlmacen"] = "Almacén",
+                ["cboListaPrecios"] = "Lista de precios",
+                ["btnCfgMesas"] = "Ctrl+Shift+M",
+                ["btnCfgMeseros"] = "Ctrl+Shift+E",
+                ["btnCfgRecetas"] = "Ctrl+Shift+R",
+            });
+
             ResetContextoMesaPedido();
             this.Load += Form1_Load; // <-- SUSCRIBIR
             // Config inicial del timer de “báscula”
@@ -127,6 +193,51 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
         
 
 
+        }
+
+        private void ApplyUiCopy()
+        {
+            try
+            {
+                Text = "GastroSAE";
+
+                // Tabs
+                tabMesas.Text = "Mesas";
+                tabPedido.Text = "Pedido";
+                tabCobro.Text = "Cobro";
+                tabInventario.Text = "Inventario";
+                tabConfig.Text = "Configuración";
+
+                // Mesas
+                btnAsignarMesero.Text = "Asignar mesero";
+                btnLiberarMesa.Text = "Liberar mesa";
+
+                // Pedido
+                btnAgregarLinea.Text = "Agregar";
+                btnQuitarLinea.Text = "Quitar";
+                btnIrCobro.Text = "Ir a cobro";
+                label1.Text = "Buscar platillo";
+
+                // Cobro
+                btnCobroConfirmar.Text = "Cobrar";
+                btnCobroCancelar.Text = "Regresar";
+                chkFacturarAhora.Text = "Facturar (CFDI)";
+
+                // Inventario
+                btnInvRefrescar.Text = "Refrescar SAE";
+                btnInvAgregar.Text = "Agregar entrada";
+                btnInvGuardarAux.Text = "Guardar";
+                btnInvEliminar.Text = "Eliminar";
+                btnInvLimpiar.Text = "Limpiar";
+                chkInvSimularBascula.Text = "Simular báscula";
+
+                // Config
+                btnCfgMesas.Text = "Mesas";
+                btnCfgMeseros.Text = "Meseros";
+                btnCfgRecetas.Text = "Recetas";
+                btnGuardarConfig.Text = "Guardar";
+            }
+            catch { /* no-op */ }
         }
 
 
@@ -213,6 +324,9 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
             // 2) Bindings
             ConfigurarGrids();
+
+            // Inventario: configura columnas y liga la sesión en memoria
+            ConfigurarGridInventario();
             dgvMesas.DataSource = _mesas;
             cboMesero.DataSource = _meseros;
             cboMesero.DisplayMember = "Nombre";
@@ -266,10 +380,29 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             // Eventos Inventario
             txtInvBuscar.TextChanged += (s, e) => FiltrarInvArticulos();
             btnInvRefrescar.Click += (s, e) => CargarInvArticulosDesdeSAE();
-            //chkInvSimularBascula.CheckedChanged += (s, e) => UpdateScaleTimer();
+            chkInvSimularBascula.CheckedChanged += (s, e) => UpdateScaleTimer();
             btnInvAgregar.Click += (s, e) => AgregarEntradaInventario();
             btnInvGuardarAux.Click += (s, e) => GuardarEntradasInventarioEnAux();
             btnInvLimpiar.Click += (s, e) => LimpiarCapturaInventario();
+
+            // Si NO se está simulando, permite capturar gramos manualmente.
+            txtInvPesoGr.TextChanged += (s, e) =>
+            {
+                if (decimal.TryParse(txtInvPesoGr.Text, out var gr) && gr >= 0)
+                    lblInvKg.Text = $"{(gr / 1000m):N3} kg";
+                else
+                    lblInvKg.Text = "0.000 kg";
+            };
+
+            // Botón de pruebas (por ahora: muestra guía). La lectura real por COM se implementa después.
+            btnProbarBascula.Click += (s, e) =>
+                MessageBox.Show(
+                    "Lectura REAL de báscula por puerto COM aún no está implementada.\n\n" +
+                    "Por ahora usa la opción 'Simular báscula' en la pestaña Inventario, " +
+                    "o desmárcala para capturar gramos manualmente.",
+                    "Báscula",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
 
             
 
@@ -283,6 +416,12 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 
             
             btnCobroCancelar.Click += (s, e) => { tabMain.SelectedTab = tabPedido; };
+            btnCobroConfirmar.Click += btnCobroConfirmar_Click;
+
+            // Cobro rápido: recalcular cambio cuando cambian montos
+            txtCobroEfectivo.TextChanged += (s, e) => CobroRapido_Recalcular_UI();
+            txtCobroTarjeta.TextChanged += (s, e) => CobroRapido_Recalcular_UI();
+
 
 
 
@@ -312,12 +451,120 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             // Carga inicial del catálogo desde SAE (si quieres al abrir)
             CargarInvArticulosDesdeSAE();
 
+            // Alinea estado inicial de timer/lectura
+            UpdateScaleTimer();
+
 
             ConfigurarGridReceta();
 
 
 
 
+        }
+
+        private void ConfigurarGridInventario()
+        {
+            dgvInvCaptura.AutoGenerateColumns = false;
+            dgvInvCaptura.Columns.Clear();
+
+            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colInvPartida",
+                HeaderText = "#",
+                DataPropertyName = "Partida",
+                Width = 50,
+                ReadOnly = true
+            });
+            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colInvClave",
+                HeaderText = "Clave",
+                DataPropertyName = "Clave",
+                Width = 120,
+                ReadOnly = true
+            });
+            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colInvNombre",
+                HeaderText = "Descripción",
+                DataPropertyName = "Nombre",
+                AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+                ReadOnly = true
+            });
+            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colInvPesoGr",
+                HeaderText = "Grs",
+                DataPropertyName = "PesoGr",
+                Width = 80,
+                ReadOnly = false,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Format = "N0",
+                    Alignment = DataGridViewContentAlignment.MiddleRight
+                }
+            });
+            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colInvPesoKg",
+                HeaderText = "Kg",
+                DataPropertyName = "PesoKg",
+                Width = 80,
+                ReadOnly = true,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Format = "N3",
+                    Alignment = DataGridViewContentAlignment.MiddleRight
+                }
+            });
+            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colInvCostoKg",
+                HeaderText = "Costo/Kg",
+                DataPropertyName = "CostoKg",
+                Width = 95,
+                ReadOnly = false,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Format = "N2",
+                    Alignment = DataGridViewContentAlignment.MiddleRight
+                }
+            });
+            dgvInvCaptura.Columns.Add(new DataGridViewTextBoxColumn
+            {
+                Name = "colInvImporte",
+                HeaderText = "Importe",
+                DataPropertyName = "Importe",
+                Width = 95,
+                ReadOnly = true,
+                DefaultCellStyle = new DataGridViewCellStyle
+                {
+                    Format = "N2",
+                    Alignment = DataGridViewContentAlignment.MiddleRight
+                }
+            });
+
+            dgvInvCaptura.AllowUserToAddRows = false;
+            dgvInvCaptura.AllowUserToDeleteRows = false;
+            dgvInvCaptura.MultiSelect = false;
+            dgvInvCaptura.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+
+            dgvInvCaptura.DataSource = _invEntradas;
+
+            dgvInvCaptura.CellEndEdit -= dgvInvCaptura_CellEndEdit_Inv;
+            dgvInvCaptura.CellEndEdit += dgvInvCaptura_CellEndEdit_Inv;
+        }
+
+        private void dgvInvCaptura_CellEndEdit_Inv(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < 0) return;
+            if (dgvInvCaptura.Rows[e.RowIndex].DataBoundItem is EntradaInvSession it)
+            {
+                if (it.PesoGr < 0) it.PesoGr = 0;
+                if (it.CostoKg < 0) it.CostoKg = 0;
+            }
+            dgvInvCaptura.Refresh();
+            RecalcularTotalesInventario();
         }
 
 
@@ -802,9 +1049,15 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
             txtImporteRecibido.Text = tot.ToString("0.00");
             Cobro_RecalcularCambio_UI(null, EventArgs.Empty);
 
+            // Cobro rápido (split efectivo/tarjeta)
+            txtCobroEfectivo.Text = tot.ToString("0.00");
+            txtCobroTarjeta.Text = "0.00";
+            txtCobroRef.Text = string.Empty;
+            CobroRapido_Recalcular_UI();
+
             tabMain.SelectedTab = tabCobro;
-            txtImporteRecibido.Focus();
-            txtImporteRecibido.SelectAll();
+            txtCobroEfectivo.Focus();
+            txtCobroEfectivo.SelectAll();
         }
 
 
@@ -1099,7 +1352,17 @@ ORDER BY CVE_ART", sae);
                 CostoKg = costoKg
             };
             _invEntradas.Add(det);
+            dgvInvCaptura.Refresh();
             RecalcularTotalesInventario();
+
+            // UX: deja seleccionada la última fila
+            if (dgvInvCaptura.Rows.Count > 0)
+            {
+                dgvInvCaptura.ClearSelection();
+                var last = dgvInvCaptura.Rows[dgvInvCaptura.Rows.Count - 1];
+                last.Selected = true;
+                dgvInvCaptura.FirstDisplayedScrollingRowIndex = last.Index;
+            }
 
             // limpia lectura
             // (no borramos costo para que se repita si capturas varias entradas)
@@ -1176,6 +1439,24 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
+            // =========================
+            // TAB: MESAS
+            // =========================
+            if (tabMain.SelectedTab == tabMesas)
+            {
+                if (keyData == Keys.Enter && dgvMesas.Focused)
+                { btnAbrirMesa.PerformClick(); return true; }
+
+                if (keyData == (Keys.Control | Keys.M))
+                { btnAsignarMesero.PerformClick(); return true; }
+
+                if (keyData == (Keys.Control | Keys.L))
+                { btnLiberarMesa.PerformClick(); return true; }
+            }
+
+            // =========================
+            // TAB: PEDIDO
+            // =========================
             if (tabMain.SelectedTab == tabPedido)
             {
                 // Cobrar rápido
@@ -1202,12 +1483,81 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
                 }
             }
 
+            // =========================
+            // TAB: COBRO
+            // =========================
+            if (tabMain.SelectedTab == tabCobro)
+            {
+                // Confirmar cobro
+                if (keyData == Keys.Enter || keyData == (Keys.Control | Keys.Enter))
+                { btnCobroConfirmar.PerformClick(); return true; }
+
+                // Cancelar / volver
+                if (keyData == Keys.Escape)
+                { btnCobroCancelar.PerformClick(); return true; }
+
+                // Ir rápido a campos
+                if (keyData == (Keys.Alt | Keys.E))
+                { txtCobroEfectivo.Focus(); txtCobroEfectivo.SelectAll(); return true; }
+
+                if (keyData == (Keys.Alt | Keys.T))
+                { txtCobroTarjeta.Focus(); txtCobroTarjeta.SelectAll(); return true; }
+
+                if (keyData == (Keys.Alt | Keys.R))
+                { txtCobroRef.Focus(); txtCobroRef.SelectAll(); return true; }
+            }
+
+            // =========================
+            // TAB: INVENTARIO
+            // =========================
+            if (tabMain.SelectedTab == tabInventario)
+            {
+                if (keyData == (Keys.Control | Keys.F))
+                { txtInvBuscar.Focus(); txtInvBuscar.SelectAll(); return true; }
+
+                if (keyData == (Keys.Control | Keys.B))
+                { chkInvSimularBascula.Checked = !chkInvSimularBascula.Checked; return true; }
+
+                if (keyData == Keys.F5)
+                { btnInvRefrescar.PerformClick(); return true; }
+
+                if (keyData == (Keys.Control | Keys.S))
+                { btnInvGuardarAux.PerformClick(); return true; }
+
+                if (keyData == (Keys.Control | Keys.L))
+                { btnInvLimpiar.PerformClick(); return true; }
+
+                if ((keyData == Keys.Insert || keyData == (Keys.Control | Keys.N)))
+                { btnInvAgregar.PerformClick(); return true; }
+
+                if ((keyData == Keys.Delete || keyData == (Keys.Control | Keys.D)) && dgvInvCaptura.Focused)
+                { EliminarLineaInventario(); return true; }
+
+                // Salir rápido
+                if (keyData == Keys.Escape)
+                { tabMain.SelectedTab = tabMesas; return true; }
+            }
+
+            // =========================
+            // TAB: CONFIG
+            // =========================
+            if (tabMain.SelectedTab == tabConfig)
+            {
+                if (keyData == (Keys.Control | Keys.Shift | Keys.M))
+                { btnCfgMesas.PerformClick(); return true; }
+
+                if (keyData == (Keys.Control | Keys.Shift | Keys.E))
+                { btnCfgMeseros.PerformClick(); return true; }
+
+                if (keyData == (Keys.Control | Keys.Shift | Keys.R))
+                { btnCfgRecetas.PerformClick(); return true; }
+            }
+
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
 
-
-        private void btnInvEliminar_Click(object sender, EventArgs e)
+private void btnInvEliminar_Click(object sender, EventArgs e)
         {
             EliminarLineaInventario();
         }
@@ -1234,10 +1584,17 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
                 cboImpresora.Items.Add(p);
         }
 
-        // private void UpdateScaleTimer()
-        // {
-        //     _timerBascula.Enabled = chkSimularBascula.Checked || chkInvSimularBascula.Checked;
-        //}
+        private void UpdateScaleTimer()
+        {
+            // Por ahora solo manejamos la simulación en Inventario.
+            // (Si después agregas chkSimularBascula para pedido, lo sumas aquí.)
+            _timerBascula.Enabled = chkInvSimularBascula.Checked;
+
+            // UX: si está simulando, el peso viene de la báscula (lectura) y no se escribe manual.
+            txtInvPesoGr.ReadOnly = chkInvSimularBascula.Checked;
+
+            UpdateStatus("BAS", _timerBascula.Enabled);
+        }
 
 
         private bool ValidarCobro()
@@ -1775,6 +2132,30 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         }
 
 
+        // Recalcula el resumen del "cobro rápido" (split efectivo/tarjeta)
+        // Nota: este flujo es independiente del flujo CFDI (txtImporteRecibido/lblCambio).
+        private void CobroRapido_Recalcular_UI()
+        {
+            // Total actual (lo controla IrACobro / RecalcularTotalesPedido)
+            lblCobroTotal.Text = $"Total: ${_totalCobroActual:N2}";
+
+            decimal eff = 0m, tar = 0m;
+            decimal.TryParse(txtCobroEfectivo.Text, out eff);
+            decimal.TryParse(txtCobroTarjeta.Text, out tar);
+
+            eff = Math.Max(0m, eff);
+            tar = Math.Max(0m, tar);
+
+            // No permitir tarjeta > total
+            tar = Math.Min(tar, _totalCobroActual);
+
+            // La tarjeta cubre primero; el efectivo cubre el resto
+            var restante = _totalCobroActual - tar;
+            var cambio = Math.Max(0m, Math.Round(eff - restante, 2));
+            lblCobroCambio.Text = $"Cambio: ${cambio:N2}";
+        }
+
+
         [Obsolete("Usar flujo de cobro con CFDI (btnConfirmarCobro_Click). Este método se mantiene solo por compatibilidad temporal.")]
         private void btnCobroConfirmar_Click(object? sender, EventArgs e)
         {
@@ -1789,6 +2170,26 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
             decimal.TryParse(txtCobroEfectivo.Text, out eff);
             decimal.TryParse(txtCobroTarjeta.Text, out tar);
             string refTar = string.IsNullOrWhiteSpace(txtCobroRef.Text) ? null : txtCobroRef.Text.Trim();
+
+            // Validación: la tarjeta cubre primero; el resto debe cubrirse con efectivo.
+            var total = _totalCobroActual;
+            tar = Math.Max(0m, tar);
+            eff = Math.Max(0m, eff);
+
+            // No permitir tarjeta > total
+            tar = Math.Min(tar, total);
+
+            var restante = total - tar;
+            if (eff < restante)
+            {
+                MessageBox.Show($"Pago insuficiente.\n\nTotal: ${total:N2}\nTarjeta: ${tar:N2}\nEfectivo requerido: ${restante:N2}",
+                                "Cobro", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var cambio = eff - restante;
+            lblCobroCambio.Text = $"Cambio: ${cambio:N2}";
+
 
             try
             {
@@ -1942,7 +2343,7 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
         private void txtRutaAux_TextChanged(object sender, EventArgs e)
         {
         }
-        private void dgvInvCaptura_CellContentClick(object sender, EventArgs e)
+        private void dgvInvCaptura_CellContentClick(object sender, DataGridViewCellEventArgs e)
         {
         }
         private void Form1_Load_1(object sender, EventArgs e)

@@ -8,6 +8,9 @@ namespace PROYECTO_RESIDENCIAS
         [STAThread]
         static void Main()
         {
+            try { Application.SetHighDpiMode(HighDpiMode.PerMonitorV2); }
+            catch { try { Application.SetHighDpiMode(HighDpiMode.SystemAware); } catch { } }
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 

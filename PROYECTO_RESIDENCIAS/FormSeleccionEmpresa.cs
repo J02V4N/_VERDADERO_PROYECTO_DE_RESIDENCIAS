@@ -38,6 +38,20 @@ namespace PROYECTO_RESIDENCIAS
         public FormSeleccionEmpresa()
         {
             InitializeComponent();
+            UiStyle.Apply(this);
+            UiFields.Apply(this);
+
+            this.AcceptButton = btnContinuar;
+            this.CancelButton = btnCancelar;
+
+            UiHints.Attach(this, new (Control control, string hint)[]
+            {
+                (btnExaminar, "Ctrl+O"),
+                (btnProbar, "F5"),
+                (btnContinuar, "Enter"),
+                (btnCancelar, "Esc"),
+            });
+
             CargarCandidatos();
             ValidarUI();
         }
@@ -340,5 +354,20 @@ namespace PROYECTO_RESIDENCIAS
         {
             btnContinuar.Enabled = false;
         }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            if (keyData == (Keys.Control | Keys.O))
+            { BtnExaminar_Click(this, EventArgs.Empty); return true; }
+
+            if (keyData == Keys.F5)
+            { BtnProbar_Click(this, EventArgs.Empty); return true; }
+
+            if (keyData == Keys.Escape)
+            { Close(); return true; }
+
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
     }
 }
