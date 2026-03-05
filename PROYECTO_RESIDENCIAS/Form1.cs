@@ -169,6 +169,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
                 ["btnCfgMesas"] = "Ctrl+Shift+M",
                 ["btnCfgMeseros"] = "Ctrl+Shift+E",
                 ["btnCfgRecetas"] = "Ctrl+Shift+R",
+                ["btnCfgIngredientes"] = "Ctrl+Shift+I",
             });
 
             ResetContextoMesaPedido();
@@ -235,6 +236,7 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
                 btnCfgMesas.Text = "Mesas";
                 btnCfgMeseros.Text = "Meseros";
                 btnCfgRecetas.Text = "Recetas";
+                btnCfgIngredientes.Text = "Ingredientes";
                 btnGuardarConfig.Text = "Guardar";
             }
             catch { /* no-op */ }
@@ -1291,6 +1293,8 @@ namespace PROYECTO_RESIDENCIAS  ///inicio namespace
 SELECT FIRST 500
        CVE_ART, DESCR, UNI_MED, UNI_ALT, FAC_CONV
 FROM {invTable}
+WHERE (STATUS IS NULL OR STATUS <> 'B')
+  AND COALESCE(LIN_PROD, '') = 'Insum'
 ORDER BY CVE_ART", sae);
 
                 using var rd = cmd.ExecuteReader();
@@ -1551,6 +1555,8 @@ VALUES (@CVE, @GR, @CKG, @IMP, 'BASCULA', 'ENTRADA', 0)", aux, tx);
 
                 if (keyData == (Keys.Control | Keys.Shift | Keys.R))
                 { btnCfgRecetas.PerformClick(); return true; }
+            if (keyData == (Keys.Control | Keys.Shift | Keys.I))
+                { btnCfgIngredientes.PerformClick(); return true; }
             }
 
             return base.ProcessCmdKey(ref msg, keyData);
@@ -1879,6 +1885,15 @@ private void btnInvEliminar_Click(object sender, EventArgs e)
             {
                 f.ShowDialog(this);
                 CargarMeserosDesdeAux(); // refresca combo al cerrar
+            }
+        }
+
+        private void btnCfgIngredientes_Click(object sender, EventArgs e)
+        {
+            using (var f = new FormIngredientesConfig())
+            {
+                f.ShowDialog(this);
+                CargarInvArticulosDesdeSAE();
             }
         }
 

@@ -233,7 +233,9 @@ namespace PROYECTO_RESIDENCIAS
             using var cmd = new FbCommand($@"
 SELECT CVE_ART, DESCR, UNI_MED, COSTO_PROM
 FROM {tINVE}
-WHERE STATUS IS NULL OR STATUS <> 'B'
+WHERE (STATUS IS NULL OR STATUS <> 'B')
+  AND COALESCE(LIN_PROD, '') = 'Insum'
+  AND COALESCE(TIPO_ELE, 'P') = 'P'
 ORDER BY DESCR", con);
 
             using var rd = cmd.ExecuteReader();
@@ -546,49 +548,22 @@ ORDER BY K.CVE_PROD";
                     if (exists) throw new Exception("Ya existe un producto con esa clave en SAE.");
                 }
 
-                // 2) INSERT mínimo como KIT (TIPO_ELE='K'), STATUS NULL = activo
+                // 2) Asegura líneas base y crea el platillo como KIT en la línea Prep
+                SaeCatalogAdmin.EnsureBaseLines(con, tx);
+
                 var sql = $@"
-INSERT INTO {tINVE} (CVE_ART, DESCR, UNI_MED, TIPO_ELE, STATUS)
-VALUES (@CVE_ART, @DESCR, @UNI_MED, @TIPO_ELE, NULL)";
+INSERT INTO {tINVE} (CVE_ART, DESCR, UNI_MED, TIPO_ELE, STATUS, LIN_PROD, CON_SERIE)
+VALUES (@CVE_ART, @DESCR, @UNI_MED, @TIPO_ELE, @STATUS, @LIN_PROD, @CON_SERIE)";
                 using (var cmdIns = new FirebirdSql.Data.FirebirdClient.FbCommand(sql, con, tx))
                 {
-                    cmdIns.Parameters.Add("@CVE_ART", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 30).Value = cveArt;
-                    cmdIns.Parameters.Add("@DESCR", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 120).Value = descr;
+                    cmdIns.Parameters.Add("@CVE_ART", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 16).Value = cveArt;
+                    cmdIns.Parameters.Add("@DESCR", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 40).Value = descr;
                     cmdIns.Parameters.Add("@UNI_MED", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 10).Value = um;
                     cmdIns.Parameters.Add("@TIPO_ELE", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 1).Value = "K";
+                    cmdIns.Parameters.Add("@STATUS", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 1).Value = "A";
+                    cmdIns.Parameters.Add("@LIN_PROD", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 5).Value = SaeCatalogAdmin.LinePrep;
+                    cmdIns.Parameters.Add("@CON_SERIE", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 1).Value = "N";
                     cmdIns.ExecuteNonQuery();
-                }
-
-                // 2.1) Asignar valores solicitados por el flujo GastroSAE
-                // LIN_PROD = "Prep"   |   CON_SERIE = "N"
-                // (se hace con verificación de columna para evitar errores si la BD no las trae)
-                bool ColumnExists(string tableName, string columnName)
-                {
-                    using var cmdCol = new FirebirdSql.Data.FirebirdClient.FbCommand(
-                        @"SELECT COUNT(*) FROM RDB$RELATION_FIELDS WHERE RDB$RELATION_NAME = @T AND RDB$FIELD_NAME = @C", con, tx);
-                    cmdCol.Parameters.Add("@T", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 31)
-                        .Value = (tableName ?? string.Empty).Trim().ToUpperInvariant();
-                    cmdCol.Parameters.Add("@C", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 31)
-                        .Value = (columnName ?? string.Empty).Trim().ToUpperInvariant();
-                    return Convert.ToInt32(cmdCol.ExecuteScalar()) > 0;
-                }
-
-                var hasLinProd = ColumnExists(tINVE, "LIN_PROD");
-                var hasConSerie = ColumnExists(tINVE, "CON_SERIE");
-                if (hasLinProd || hasConSerie)
-                {
-                    var sets = new System.Collections.Generic.List<string>();
-                    if (hasLinProd) sets.Add("LIN_PROD = @LIN_PROD");
-                    if (hasConSerie) sets.Add("CON_SERIE = @CON_SERIE");
-
-                    using var cmdUpd = new FirebirdSql.Data.FirebirdClient.FbCommand(
-                        $@"UPDATE {tINVE} SET {string.Join(", ", sets)} WHERE CVE_ART = @CVE_ART", con, tx);
-                    cmdUpd.Parameters.Add("@CVE_ART", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 30).Value = cveArt;
-                    if (hasLinProd)
-                        cmdUpd.Parameters.Add("@LIN_PROD", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 20).Value = "Prep";
-                    if (hasConSerie)
-                        cmdUpd.Parameters.Add("@CON_SERIE", FirebirdSql.Data.FirebirdClient.FbDbType.VarChar, 1).Value = "N";
-                    cmdUpd.ExecuteNonQuery();
                 }
 
                 tx.Commit();

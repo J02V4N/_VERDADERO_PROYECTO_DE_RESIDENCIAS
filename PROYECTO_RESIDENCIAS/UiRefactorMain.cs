@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
@@ -978,6 +978,7 @@ private static void RefactorConfig(TabPage tab)
             if (tab.Controls.OfType<TableLayoutPanel>().Any(t => t.Name == "tlpCfgRoot")) return;
 
             var btnCfgRecetas = Find<Button>(tab, "btnCfgRecetas");
+            var btnCfgIngredientes = Find<Button>(tab, "btnCfgIngredientes");
             var btnCfgMeseros = Find<Button>(tab, "btnCfgMeseros");
             var btnCfgMesas = Find<Button>(tab, "btnCfgMesas");
             var btnGuardarConfig = Find<Button>(tab, "btnGuardarConfig");
@@ -991,7 +992,7 @@ private static void RefactorConfig(TabPage tab)
             var txtRutaAux = Find<TextBox>(tab, "txtRutaAux");
             var txtRutaSae = Find<TextBox>(tab, "txtRutaSae");
 
-            if (btnCfgRecetas == null || btnCfgMeseros == null || btnCfgMesas == null || btnGuardarConfig == null ||
+            if (btnCfgRecetas == null || btnCfgIngredientes == null || btnCfgMeseros == null || btnCfgMesas == null || btnGuardarConfig == null ||
                 btnProbarBascula == null || cboListaPrecios == null || cboAlmacen == null || txtPuertoCom == null ||
                 cboImpresora == null || btnPruebaAux == null || btnPruebaSae == null || txtRutaAux == null || txtRutaSae == null)
                 return;
@@ -1136,11 +1137,11 @@ private static void RefactorConfig(TabPage tab)
                 AutoSizeMode = AutoSizeMode.GrowAndShrink
             };
 
-            // Tabla interna: 3 botones en fila (más compacta y sin recortes).
+            // Tabla interna: 4 botones en fila (compacta y sin recortes).
             var tlAdm = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
-                ColumnCount = 3,
+                ColumnCount = 4,
                 RowCount = 1,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
@@ -1150,27 +1151,32 @@ private static void RefactorConfig(TabPage tab)
             // Altura táctil (2 líneas: texto + atajo)
             const int ADM_BTN_H = 70;
             tlAdm.RowStyles.Add(new RowStyle(SizeType.Absolute, ADM_BTN_H));
-            tlAdm.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
-            tlAdm.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.33f));
-            tlAdm.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 33.34f));
+            tlAdm.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            tlAdm.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            tlAdm.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
+            tlAdm.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 25f));
 
             btnCfgMesas.Text = "Mesas";
             btnCfgMeseros.Text = "Meseros";
+            btnCfgIngredientes.Text = "Ingredientes";
             btnCfgRecetas.Text = "Recetas";
 
             // Tamaño mínimo para touch.
             btnCfgMesas.MinimumSize = new System.Drawing.Size(0, ADM_BTN_H);
             btnCfgMeseros.MinimumSize = new System.Drawing.Size(0, ADM_BTN_H);
+            btnCfgIngredientes.MinimumSize = new System.Drawing.Size(0, ADM_BTN_H);
             btnCfgRecetas.MinimumSize = new System.Drawing.Size(0, ADM_BTN_H);
 
             // Que llenen su celda.
             btnCfgMesas.Dock = DockStyle.Fill;
             btnCfgMeseros.Dock = DockStyle.Fill;
+            btnCfgIngredientes.Dock = DockStyle.Fill;
             btnCfgRecetas.Dock = DockStyle.Fill;
 
             // Espaciado horizontal entre botones.
             btnCfgMesas.Margin = new Padding(0, 0, 10, 0);
             btnCfgMeseros.Margin = new Padding(0, 0, 10, 0);
+            btnCfgIngredientes.Margin = new Padding(0, 0, 10, 0);
             btnCfgRecetas.Margin = new Padding(0);
 
             // Compacto: el grupo solo ocupa lo necesario.
@@ -1178,7 +1184,8 @@ private static void RefactorConfig(TabPage tab)
 
             tlAdm.Controls.Add(btnCfgMesas, 0, 0);
             tlAdm.Controls.Add(btnCfgMeseros, 1, 0);
-            tlAdm.Controls.Add(btnCfgRecetas, 2, 0);
+            tlAdm.Controls.Add(btnCfgIngredientes, 2, 0);
+            tlAdm.Controls.Add(btnCfgRecetas, 3, 0);
 
             gbAdmin.Controls.Add(tlAdm);
 

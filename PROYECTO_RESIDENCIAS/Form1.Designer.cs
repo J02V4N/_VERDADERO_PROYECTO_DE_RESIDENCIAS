@@ -88,6 +88,7 @@
             tabConfig = new TabPage();
             btnCfgMeseros = new Button();
             btnCfgMesas = new Button();
+            btnCfgIngredientes = new Button();
             btnGuardarConfig = new Button();
             btnProbarBascula = new Button();
             cboListaPrecios = new ComboBox();
@@ -755,6 +756,7 @@
             // tabConfig
             // 
             tabConfig.Controls.Add(btnCfgRecetas);
+            tabConfig.Controls.Add(btnCfgIngredientes);
             tabConfig.Controls.Add(btnCfgMeseros);
             tabConfig.Controls.Add(btnCfgMesas);
             tabConfig.Controls.Add(btnGuardarConfig);
@@ -900,6 +902,16 @@
             txtRutaSae.Size = new Size(624, 31);
             txtRutaSae.TabIndex = 2;
             // 
+            // btnCfgIngredientes
+            // 
+            btnCfgIngredientes.Location = new Point(1110, 343);
+            btnCfgIngredientes.Name = "btnCfgIngredientes";
+            btnCfgIngredientes.Size = new Size(138, 34);
+            btnCfgIngredientes.TabIndex = 16;
+            btnCfgIngredientes.Text = "btnCfgIngredientes";
+            btnCfgIngredientes.UseVisualStyleBackColor = true;
+            btnCfgIngredientes.Click += btnCfgIngredientes_Click;
+            // 
             // btnCfgRecetas
             // 
             btnCfgRecetas.Location = new Point(965, 343);
@@ -1017,5 +1029,6 @@
         private Label lblCobroMesa;
         private Button btnCobroCancelar;
         private Button btnCfgRecetas;
+        private Button btnCfgIngredientes;
     }
 }
