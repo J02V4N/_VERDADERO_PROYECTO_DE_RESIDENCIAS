@@ -16,6 +16,7 @@ namespace GastroSAE
         public FormMeserosConfig()
         {
             Text = "Meseros (BD Aux)";
+            AppIcon.Apply(this);
             StartPosition = FormStartPosition.CenterParent;
             Width = 720;
             Height = 520;
@@ -277,6 +278,7 @@ namespace GastroSAE
             private EditarMeseroDialog(string? nombre, bool activo)
             {
                 Text = "Mesero";
+                AppIcon.Apply(this);
                 StartPosition = FormStartPosition.CenterParent;
                 Width = 360;
                 Height = 160;

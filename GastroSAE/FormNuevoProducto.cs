@@ -24,6 +24,7 @@ namespace GastroSAE
         public FormNuevoProducto()
         {
             InitializeComponent();
+            AppIcon.Apply(this);
 
             UiStyle.Apply(this);
             UiFields.Apply(this);

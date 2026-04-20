@@ -15,6 +15,7 @@ namespace GastroSAE
         public FormIngredientesConfig()
         {
             Text = "Ingredientes (BD SAE)";
+            AppIcon.Apply(this);
             StartPosition = FormStartPosition.CenterParent;
             Width = 860;
             Height = 560;
@@ -241,6 +242,7 @@ namespace GastroSAE
             public IngredienteDialog(string? clave = null, string? descripcion = null, string? unidad = null, decimal? stockMinimo = null, decimal? stockMaximo = null, bool modoEdicion = false)
             {
                 Text = modoEdicion ? "Editar ingrediente (SAE)" : "Nuevo ingrediente (SAE)";
+                AppIcon.Apply(this);
                 StartPosition = FormStartPosition.CenterParent;
                 ClientSize = new Size(560, 300);
                 FormBorderStyle = FormBorderStyle.FixedDialog;

@@ -33,6 +33,7 @@ namespace GastroSAE
         public FormRecetaEditor()
         {
             InitializeComponent();
+            AppIcon.Apply(this);
 
             FormBorderStyle = FormBorderStyle.Sizable;
             MinimumSize = new Size(900, 600);

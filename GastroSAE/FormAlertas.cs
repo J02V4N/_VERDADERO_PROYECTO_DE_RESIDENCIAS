@@ -27,6 +27,7 @@ namespace GastroSAE
             IReadOnlyList<SaeDb.PlatilloDisponibilidadDto> limitados)
         {
             Text = "Centro de alertas";
+            AppIcon.Apply(this);
             StartPosition = FormStartPosition.CenterParent;
             MinimumSize = new Size(1080, 680);
             Size = new Size(1280, 800);

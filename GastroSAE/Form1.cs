@@ -176,6 +176,7 @@ namespace GastroSAE  ///inicio namespace
 
 
             InitializeComponent();
+            AppIcon.Apply(this);
 
             EnsureCobroFacturaExtraControls();
             EnsureNombreNegocioConfigControls();
@@ -3709,6 +3710,7 @@ ORDER BY p.NUM_PAR", con))
         public SimpleTextPromptForm(string title, string label, string initial)
         {
             Text = title;
+            AppIcon.Apply(this);
             StartPosition = FormStartPosition.CenterParent;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             MaximizeBox = false;

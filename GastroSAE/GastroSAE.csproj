@@ -11,10 +11,15 @@
     <AssemblyName>GastroSAE</AssemblyName>
     <RootNamespace>GastroSAE</RootNamespace>
     <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
+    <SignAssembly>True</SignAssembly>
+    <AssemblyOriginatorKeyFile>..\claves.snk</AssemblyOriginatorKeyFile>
+    <Copyright>INNOVACIÓN EN CONTABILIDAD Y NEGOCIOS CON ENFOQUE TECNOLÓGICO 2026 ©</Copyright>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="GastroSAE.ico" />
+    <Content Include="GastroSAE.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>

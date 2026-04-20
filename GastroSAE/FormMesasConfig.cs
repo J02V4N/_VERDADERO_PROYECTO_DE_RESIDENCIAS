@@ -17,6 +17,7 @@ namespace GastroSAE
         public FormMesasConfig()
         {
             Text = "Mesas (BD Aux)";
+            AppIcon.Apply(this);
             StartPosition = FormStartPosition.CenterParent;
             Width = 720;
             Height = 520;
@@ -280,6 +281,7 @@ namespace GastroSAE
             private EditarMesaDialog(string? nombre, int? cap)
             {
                 Text = "Mesa";
+                AppIcon.Apply(this);
                 StartPosition = FormStartPosition.CenterParent;
                 Width = 360;
                 Height = 180;

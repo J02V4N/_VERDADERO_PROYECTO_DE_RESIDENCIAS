@@ -5,6 +5,8 @@ VisualStudioVersion = 18.3.11527.330
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GastroSAE", "GastroSAE\GastroSAE.csproj", "{7F6BF444-0F57-4829-88A0-51794039EBF2}"
 EndProject
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "instalador Gastro SAE", "instalador Gastro SAE\instalador Gastro SAE.vdproj", "{F7B6BD2C-E660-3695-456D-CF05B817D903}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{7F6BF444-0F57-4829-88A0-51794039EBF2}.Release|Any CPU.Build.0 = Release|Any CPU
 		{7F6BF444-0F57-4829-88A0-51794039EBF2}.Release|x86.ActiveCfg = Release|x86
 		{7F6BF444-0F57-4829-88A0-51794039EBF2}.Release|x86.Build.0 = Release|x86
+		{F7B6BD2C-E660-3695-456D-CF05B817D903}.Debug|Any CPU.ActiveCfg = Debug
+		{F7B6BD2C-E660-3695-456D-CF05B817D903}.Debug|x86.ActiveCfg = Debug
+		{F7B6BD2C-E660-3695-456D-CF05B817D903}.Release|Any CPU.ActiveCfg = Release
+		{F7B6BD2C-E660-3695-456D-CF05B817D903}.Release|x86.ActiveCfg = Release
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

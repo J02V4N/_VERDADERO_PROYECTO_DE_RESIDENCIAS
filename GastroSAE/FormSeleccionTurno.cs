@@ -16,6 +16,7 @@ namespace GastroSAE
         public FormSeleccionTurno()
         {
             Text = "Seleccionar/Abrir turno";
+            AppIcon.Apply(this);
             StartPosition = FormStartPosition.CenterScreen;
             Width = 480;
             Height = 230;
